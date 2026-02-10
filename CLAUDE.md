@@ -6,16 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **ResearchTwin** is a federated platform that transforms a researcher's publications, datasets, and code repositories into a conversational Digital Twin. Inspired by Bimodal Glial-Neural Optimization (BGNO), it uses a dual-discovery pathway where humans and AI agents collaborate for scientific discovery.
 
-This repository also serves as an **Obsidian vault** (`.obsidian/` config present).
-
-## Current State
-
-The project is early-stage. Most files are placeholders (`tier2_local_node.py`, `install-edge.sh`, `CODE_OF_CONDUCT.md`, `CONTRIBUTING.md`, `LICENSE`). The two substantive files are:
-
-- `discord_bot.py` — Discord bot with `/research` and `/sindex` slash commands using discord.py
-- `docker-compose.yml` — Three-service orchestration (backend, discord_bot, nginx)
-
-The `backend/` and `frontend/` directories referenced in README.md do not exist yet. A deprecated Node.js version is archived in `my_research_node_deprecated.zip`.
+This repository also serves as an **Obsidian vault** (`.obsidian/` is gitignored).
 
 ## Architecture (BGNO)
 
@@ -34,15 +25,31 @@ Federated network tiers: **Local Nodes** (individual researchers) → **Hubs** (
 docker-compose up -d --build
 ```
 
-Services: backend (FastAPI on port 8000), discord_bot (depends on backend), nginx (ports 80/443).
+Services:
+- `researchtwin_backend` — FastAPI on port 8000 (exposed only within Docker network)
+- `researchtwin_discord_bot` — Discord bot, starts after backend is healthy
+
+## Deployment
+
+Deployed on Hetzner `94.130.225.75` alongside other services (SefarAI, PPD). The existing Nginx reverse proxy handles SSL and routing for `researchtwin.net`. ResearchTwin runs on its own `researchtwin-network` Docker network.
+
+Key files for deployment:
+- `nginx/researchtwin-ssl.conf` — Drop into the hetzner-deployment `nginx/conf.d/` directory
+- The existing Nginx container must join `researchtwin-network` to proxy to the backend
 
 ## Tech Stack
 
-- **Backend**: Python, FastAPI
+- **Backend**: Python 3.12, FastAPI, uvicorn
 - **Bot**: discord.py with app_commands (slash commands)
-- **Proxy**: Nginx
+- **Proxy**: Nginx (shared with hetzner-deployment)
 - **Infra**: Docker Compose
 - **External APIs**: Semantic Scholar, GitHub, Figshare, Discord
+
+## API Endpoints
+
+- `POST /chat` — Chat with a researcher's digital twin (body: `{message, researcher_slug}`)
+- `GET /api/context/{slug}` — Get researcher context and S-index
+- `GET /health` — Health check
 
 ## Key Concept: S-index
 

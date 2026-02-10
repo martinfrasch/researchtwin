@@ -1,40 +1,41 @@
-
 version: '3.8'
 
 services:
   backend:
     build: ./backend
-    container_name: research_backend
+    container_name: researchtwin_backend
     volumes:
       - ./backend/data:/app/data
     environment:
       - SEMANTIC_SCHOLAR_API_KEY=${SEMANTIC_SCHOLAR_API_KEY}
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - FIGSHARE_TOKEN=${FIGSHARE_TOKEN}
-    ports:
-      - "8000:8000"
-    restart: always
+    expose:
+      - "8000"
+    restart: unless-stopped
+    networks:
+      - researchtwin-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   discord_bot:
     build: ./backend
-    container_name: research_discord_bot
+    container_name: researchtwin_discord_bot
     command: python discord_bot.py
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     environment:
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
       - API_BASE_URL=http://backend:8000
-    restart: always
+    restart: unless-stopped
+    networks:
+      - researchtwin-network
 
-  nginx:
-    image: nginx:latest
-    container_name: research_nginx
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./frontend:/usr/share/nginx/html:ro
-    ports:
-      - "80:80"
-      - "443:443"
-    depends_on:
-      - backend
-    restart: always
+networks:
+  researchtwin-network:
+    name: researchtwin-network
+    driver: bridge

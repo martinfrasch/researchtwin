@@ -1,0 +1,209 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ResearchTwin API",
+    "description": "Inter-agentic research discovery API. Find researchers, papers, datasets, repositories, and S-Index impact metrics across a federated network of researcher digital twins.",
+    "version": "0.3.0",
+    "contact": {
+      "name": "Martin Frasch",
+      "url": "https://researchtwin.net",
+      "email": "martin@researchtwin.net"
+    },
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://researchtwin.net",
+      "description": "Production"
+    }
+  ],
+  "paths": {
+    "/api/researchers": {
+      "get": {
+        "operationId": "listResearchers",
+        "summary": "List all registered researchers",
+        "description": "Returns researcher slugs and display names. Use a slug with other endpoints to explore a specific researcher.",
+        "responses": {
+          "200": {
+            "description": "List of researchers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "researchers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slug": { "type": "string", "example": "martin-frasch" },
+                          "display_name": { "type": "string", "example": "Martin Frasch" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/researcher/{slug}/profile": {
+      "get": {
+        "operationId": "getResearcherProfile",
+        "summary": "Get researcher profile with S-Index",
+        "description": "Returns structured profile with S-Index score, h-index, paper count, citation count, and links to papers/datasets/repos.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Researcher identifier (e.g. 'martin-frasch')"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Researcher profile with S-Index metrics",
+            "content": { "application/json": { "schema": { "type": "object" } } }
+          },
+          "404": { "description": "Researcher not found" }
+        }
+      }
+    },
+    "/api/context/{slug}": {
+      "get": {
+        "operationId": "getResearcherContext",
+        "summary": "Get comprehensive research context",
+        "description": "Returns S-Index, paper impact, source connection status, dataset QIC scores, and repo QIC scores. More detailed than profile.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Researcher identifier"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Full research context with all metrics",
+            "content": { "application/json": { "schema": { "type": "object" } } }
+          }
+        }
+      }
+    },
+    "/api/researcher/{slug}/papers": {
+      "get": {
+        "operationId": "getResearcherPapers",
+        "summary": "Get researcher publications",
+        "description": "Returns papers from Semantic Scholar and Google Scholar (merged, deduplicated) with titles, years, citation counts, and URLs.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Researcher identifier"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Papers with citation counts",
+            "content": { "application/json": { "schema": { "type": "object" } } }
+          }
+        }
+      }
+    },
+    "/api/researcher/{slug}/datasets": {
+      "get": {
+        "operationId": "getResearcherDatasets",
+        "summary": "Get researcher datasets with QIC scores",
+        "description": "Returns Figshare datasets with DOIs, download/view counts, and QIC (Quality x Impact x Collaboration) scores.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Researcher identifier"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Datasets with QIC scores",
+            "content": { "application/json": { "schema": { "type": "object" } } }
+          }
+        }
+      }
+    },
+    "/api/researcher/{slug}/repos": {
+      "get": {
+        "operationId": "getResearcherRepos",
+        "summary": "Get researcher repositories with QIC scores",
+        "description": "Returns GitHub repositories with stars, forks, language, and QIC scores.",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Researcher identifier"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Repositories with QIC scores",
+            "content": { "application/json": { "schema": { "type": "object" } } }
+          }
+        }
+      }
+    },
+    "/api/discover": {
+      "get": {
+        "operationId": "discoverResearch",
+        "summary": "Search across all researchers",
+        "description": "Cross-researcher search for papers, datasets, or repositories matching a keyword. Returns items sorted by relevance with researcher attribution.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Search keyword (e.g. 'fetal', 'machine learning', 'turbulence')"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["paper", "dataset", "repo"] },
+            "description": "Optional filter by type"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Search results across all researchers",
+            "content": { "application/json": { "schema": { "type": "object" } } }
+          }
+        }
+      }
+    },
+    "/api/network/map": {
+      "get": {
+        "operationId": "getNetworkMap",
+        "summary": "Get geographic affiliation map",
+        "description": "Returns researchers with their institutional affiliations and coordinates, sourced from ORCID and Semantic Scholar.",
+        "responses": {
+          "200": {
+            "description": "Geocoded researcher affiliations",
+            "content": { "application/json": { "schema": { "type": "object" } } }
+          }
+        }
+      }
+    }
+  }
+}

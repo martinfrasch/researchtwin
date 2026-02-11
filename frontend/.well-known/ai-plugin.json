@@ -1,0 +1,17 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "ResearchTwin",
+  "name_for_model": "researchtwin",
+  "description_for_human": "Discover researchers, papers, datasets, and code repositories. Explore S-Index impact metrics across a federated network of researcher digital twins.",
+  "description_for_model": "ResearchTwin is a federated platform for research discovery. Use the API to find researchers by slug, explore their publications (with citation counts from Semantic Scholar and Google Scholar), datasets (with FAIR-based QIC scores from Figshare), and code repositories (with QIC scores from GitHub). Compute S-Index impact metrics that combine Quality, Impact, and Collaboration across all research output types. Start with GET /api/researchers to list available researchers, or GET /api/discover?q=keyword to search across all researchers.",
+  "auth": {
+    "type": "none"
+  },
+  "api": {
+    "type": "openapi",
+    "url": "https://researchtwin.net/.well-known/openapi.json"
+  },
+  "logo_url": "https://researchtwin.net/assets/app-icon-1024.png",
+  "contact_email": "martin@researchtwin.net",
+  "legal_info_url": "https://researchtwin.net/privacy.html"
+}

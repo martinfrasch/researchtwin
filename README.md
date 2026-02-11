@@ -1,142 +1,167 @@
 # ResearchTwin: Federated Agentic Web of Research Knowledge
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Live Platform](https://img.shields.io/badge/platform-researchtwin.net-blue)](https://researchtwin.net)
+[![S-Index Spec](https://img.shields.io/badge/metric-S--Index-green)](https://github.com/martinfrasch/s-index)
+[![Project Board](https://img.shields.io/badge/project-Ecosystem-purple)](https://github.com/users/martinfrasch/projects/8)
 
-ResearchTwin is an open-source, federated platform that transforms a researcher's publications, datasets, and code repositories into a conversational **Digital Twin**. Inspired by biological Bimodal Glial-Neural Optimization (BGNO), it enables a dual-discovery pathway where both humans and AI agents collaborate to accelerate scientific discovery.
+ResearchTwin is an open-source, federated platform that transforms a researcher's publications, datasets, and code repositories into a conversational **Digital Twin**. Built on a Bimodal Glial-Neural Optimization (BGNO) architecture, it enables dual-discovery where both humans and AI agents collaborate to accelerate scientific discovery.
+
+**Live at [researchtwin.net](https://researchtwin.net)** | **[Join the Network](https://researchtwin.net/join.html)**
 
 ---
 
-## 🚀 Project Vision
+## Project Vision
 
 The exponential growth of scientific outputs has created a "discovery bottleneck." Traditional static PDFs and siloed repositories limit knowledge synthesis and reuse. ResearchTwin addresses this by:
 
-- Integrating multi-modal research artifacts from **Semantic Scholar**, **GitHub**, and **Figshare**.
-- Implementing a real-time **S-index** metric that captures impact across citations, code utility, and data reuse.
-- Providing a conversational chatbot interface for interactive exploration of research.
-- Enabling a **federated, Discord-like architecture** that supports local nodes, hubs, and hosted edges.
-- Fostering an **agentic web of knowledge** where AI agents autonomously discover inter-lab synergies.
+- Integrating multi-modal research artifacts from **Semantic Scholar**, **Google Scholar**, **GitHub**, and **Figshare**
+- Computing a real-time **[S-Index](https://github.com/martinfrasch/s-index)** metric (Quality × Impact × Collaboration) across all output types
+- Providing a conversational chatbot interface for interactive research exploration
+- Exposing an **Inter-Agentic Discovery API** with Schema.org types for machine-to-machine research discovery
+- Enabling a **federated, Discord-like architecture** supporting local nodes, hubs, and hosted edges
 
 ---
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
-![BGNO Architecture](docs/bgno_architecture.png)
+### BGNO (Bimodal Glial-Neural Optimization)
 
-### Key Components
+```
+Data Sources          Glial Layer          Neural Layer         Interface
+┌──────────────┐    ┌─────────────┐    ┌──────────────┐    ┌────────────┐
+│Semantic Scholar│───▶│             │    │              │    │  Web Chat  │
+│Google Scholar │───▶│  SQLite     │───▶│  RAG with    │───▶│  Discord   │
+│GitHub API     │───▶│  Cache +    │    │  Claude API  │    │  Agent API │
+│Figshare API   │───▶│  Rate Limit │    │              │    │  Embed     │
+└──────────────┘    └─────────────┘    └──────────────┘    └────────────┘
+```
 
-- **Multi-Modal Connector Layer:**  
-  Pulls data on-demand from Semantic Scholar (publications), GitHub (code), and Figshare (datasets).
-
-- **Glial Layer:**  
-  Handles caching, rate limiting, and context preparation to optimize data flow and cost.
-
-- **Neural Layer:**  
-  Uses Retrieval-Augmented Generation (RAG) with RouteLLM API to synthesize answers from aggregated context.
-
-- **Conversational Chatbot / Digital Twin:**  
-  Exposes the integrated context via a chat interface on the web and Discord.
+- **Connector Layer**: Pulls papers (S2+GS with deduplication), repos (GitHub), datasets (Figshare), and ORCID metadata
+- **Glial Layer**: SQLite caching with 24h TTL, rate limiting, S2+GS title-similarity merge (0.85 threshold)
+- **Neural Layer**: RAG with Claude — context assembly, prompt engineering, conversational synthesis
+- **Interface Layer**: D3.js knowledge graph, chat widget, Discord bot, REST API
 
 ### Federated Network Tiers
 
-| Tier          | Description                                                                                  |
-|---------------|----------------------------------------------------------------------------------------------|
-| **Local Nodes**  | Individual researchers or labs hosting lightweight instances with their own data connectors. |
-| **Hubs**         | Aggregators federating multiple local nodes for inter-lab knowledge sharing.                |
-| **Hosted Edges** | Cloud-hosted services providing advanced analytics, global discovery indices, and premium features. |
+| Tier | Name | Description | Status |
+|------|------|-------------|--------|
+| **Tier 1** | Local Nodes | Researchers run `python run_node.py` locally | Live |
+| **Tier 2** | Hubs | Lab aggregators federating multiple nodes | Planned |
+| **Tier 3** | Hosted Edges | Cloud-hosted at researchtwin.net | Live |
+
+### Inter-Agentic Discovery API
+
+Machine-readable endpoints with Schema.org `@type` annotations:
+
+| Endpoint | Schema.org Type | Purpose |
+|----------|----------------|---------|
+| `GET /api/researcher/{slug}/profile` | `Person` | Researcher profile with HATEOAS links |
+| `GET /api/researcher/{slug}/papers` | `ItemList` of `ScholarlyArticle` | Papers with citations |
+| `GET /api/researcher/{slug}/datasets` | `ItemList` of `Dataset` | Datasets with QIC scores |
+| `GET /api/researcher/{slug}/repos` | `ItemList` of `SoftwareSourceCode` | Repos with QIC scores |
+| `GET /api/discover?q=keyword&type=paper` | `SearchResultSet` | Cross-researcher search |
 
 ---
 
-## ⚙️ Getting Started
+## Getting Started
 
-### Prerequisites
+### Hosted (Tier 3) — Zero Setup
 
-- Docker & Docker Compose
-- API keys for:
-  - Semantic Scholar
-  - GitHub (optional but recommended)
-  - Figshare (optional)
-  - Discord Bot Token (for Discord integration)
+1. Visit [researchtwin.net/join.html](https://researchtwin.net/join.html)
+2. Register with your name, email, and research identifiers
+3. Your Digital Twin is live immediately
 
-### Setup
+### Local Node (Tier 1) — Full Control
 
-1. Clone the repository:
+```bash
+git clone https://github.com/martinfrasch/researchtwin.git
+cd researchtwin
+pip install -r backend/requirements.txt
+cp node_config.json.example node_config.json
+# Edit node_config.json with your details
+python run_node.py --config node_config.json
+```
 
-   ```bash
-   git clone https://github.com/your-org/researchtwin.git
-   cd researchtwin
-   ```
+### Docker Deployment
 
-2. Create a `.env` file with your API keys:
+```bash
+cp .env.example .env  # Add your API keys
+docker-compose up -d --build
+```
 
-   ```env
-   SEMANTIC_SCHOLAR_API_KEY=your_ss_key
-   GITHUB_TOKEN=your_github_token
-   FIGSHARE_TOKEN=your_figshare_token
-   DISCORD_BOT_TOKEN=your_discord_bot_token
-   ```
-
-3. Build and start the services:
-
-   ```bash
-   docker-compose up -d --build
-   ```
-
-4. Access the chatbot widget via your configured domain or localhost.
-
-5. Invite the Discord bot to your server and use `/research` and `/sindex` commands.
+**Required API keys**: `ANTHROPIC_API_KEY` (for Claude RAG)
+**Optional**: `S2_API_KEY`, `GITHUB_TOKEN`, `DISCORD_BOT_TOKEN`, SMTP credentials
 
 ---
 
-## 📂 Repository Structure
+## Repository Structure
 
 ```
 researchtwin/
-├── backend/                # FastAPI backend service
-│   ├── main.py             # API endpoints and logic
-│   ├── discord_bot.py      # Discord bot integration
-│   └── ...                 # Other backend modules
-├── frontend/               # Frontend widget and UI
-│   └── widget-loader.js    # Embeddable chat widget loader
-├── nginx.conf              # Nginx reverse proxy configuration
-├── docker-compose.yml      # Docker Compose orchestration file
-├── docs/                   # Documentation and diagrams
-│   └── bgno_architecture.png
-├── medium_article.md       # Medium article draft for publicizing
-├── whitepaper.tex          # LaTeX source of the research manuscript
-└── README.md               # This file
+├── backend/
+│   ├── main.py              # FastAPI endpoints (REST + Discovery API)
+│   ├── researchers.py        # SQLite researcher CRUD + token management
+│   ├── database.py           # SQLite schema, WAL mode, migrations
+│   ├── models.py             # Pydantic models for all endpoints
+│   ├── rag.py                # RAG context assembly for Claude
+│   ├── qic_index.py          # S-Index / QIC computation engine
+│   ├── email_service.py      # SMTP service for profile update codes
+│   ├── connectors/           # Data source connectors
+│   │   ├── semantic_scholar.py
+│   │   ├── scholarly_lib.py  # Google Scholar via scholarly
+│   │   ├── github_connector.py
+│   │   └── figshare.py
+│   └── discord_bot/          # Discord bot with /research and /sindex
+├── frontend/
+│   ├── index.html            # Main dashboard with D3.js knowledge graph
+│   ├── join.html             # Self-registration page
+│   ├── update.html           # Email-verified profile updates
+│   ├── privacy.html          # Privacy policy
+│   └── widget-loader.js      # Embeddable chat widget
+├── run_node.py               # Tier 1 local node launcher
+├── node_config.json.example  # Local node configuration template
+├── docker-compose.yml        # Docker orchestration
+├── nginx/                    # Nginx reverse proxy + SSL
+└── whitepaper.tex            # LaTeX manuscript
 ```
 
 ---
 
-## 🤝 Contributing
+## Ecosystem
 
-Contributions are welcome! Please open issues or pull requests for:
+This repository is part of the **[ResearchTwin Ecosystem](https://github.com/users/martinfrasch/projects/8)** project:
 
-- New connectors (e.g., ORCID, PubMed)
+| Repository | Description |
+|------------|-------------|
+| **[researchtwin](https://github.com/martinfrasch/researchtwin)** | Federated platform (this repo) |
+| **[s-index](https://github.com/martinfrasch/s-index)** | S-Index formal specification and reference implementation |
+
+---
+
+## Contributing
+
+Contributions welcome! See the [project board](https://github.com/users/martinfrasch/projects/8) for tracked issues.
+
+- New connectors (ORCID enrichment, PubMed, OpenAlex)
+- Affiliation-based geographic mapping
+- MCP server for inter-agentic discovery
 - UI/UX improvements
 - Bug fixes and optimizations
-- Documentation enhancements
 
 ---
 
-## 📜 License
+## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
----
-
-## 📞 Contact
-
-For questions or collaboration inquiries, please open an issue or contact the maintainers at [your-email@example.com].
+MIT License. See [LICENSE](LICENSE).
 
 ---
 
-## 🌐 Links
+## Contact
 
-- [Project Website](https://researchtwin.net)  
-- [GitHub Repository](https://github.com/your-org/researchtwin)  
-- [ArXiv Paper](https://arxiv.org/abs/XXXX.XXXXX)  
-- [Medium Article](https://medium.com/@yourhandle/researchtwin)
+- **Platform**: [researchtwin.net](https://researchtwin.net)
+- **Email**: martin@researchtwin.net
+- **Issues**: [GitHub Issues](https://github.com/martinfrasch/researchtwin/issues)
 
 ---
 

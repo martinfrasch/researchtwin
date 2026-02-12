@@ -236,7 +236,7 @@ Q_j = \underbrace{5 \cdot p_j \cdot \ell_j}_{\text{FAIR gate}} \times \Bigl(1 + 
 \end{equation}
 \end{definition}
 
-The FAIR gate enforces a hard prerequisite: artifacts that are not publicly accessible \emph{or} lack an explicit license receive $Q_j = 0$ regardless of other indicators, encoding the principle that failing the two most fundamental FAIR requirements---Accessibility and Reusability---should disqualify an artifact from contributing to impact. The bonus terms reward additional quality indicators (Findability via DOI, documentation, standard formatting) multiplicatively, yielding a Quality range of $Q_j \in \{0\} \cup [5, 10]$.
+The FAIR gate enforces a hard prerequisite: artifacts that are not publicly accessible \emph{or} lack an explicit license receive $Q_j = 0$ regardless of other indicators, encoding the principle that failing the two most fundamental FAIR requirements---Accessibility and Reusability---should disqualify an artifact from contributing to impact. The bonus terms reward additional quality indicators (Findability via DOI, documentation, standard formatting) multiplicatively, yielding a Quality range of $Q_j \in \{0\} \cup [5, 10]$. The discontinuous jump from $0$ to $5$ is intentional: the base value of $5$ represents the \emph{baseline credit for a FAIR-compliant artifact}---one that is publicly accessible and explicitly licensed---before any additional quality bonuses are applied. An artifact that clears the gate has already satisfied the two most consequential FAIR requirements; the bonus terms then modulate this baseline by up to $2\times$.
 
 \begin{table}[ht]
 \centering

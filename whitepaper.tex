@@ -41,9 +41,10 @@ ResearchTwin and the S-Index for Federated\\
 Human-AI Research Discovery}
 
 \author{
-	\href{https://orcid.org/0000-0002-1400-6730}{\includegraphics[scale=0.06]{orcid.pdf}\hspace{1mm}Martin Frasch} \\
-	Independent Researcher \\
-	\texttt{martin@researchtwin.net} \\
+	\href{https://orcid.org/0000-0003-3159-6321}{\includegraphics[scale=0.06]{orcid.pdf}\hspace{1mm}Martin G. Frasch} \\
+	Health Stream Analytics, LLC \\
+	University of Washington, Seattle \\
+	\texttt{mfrasch@uw.edu} \\
 }
 
 \date{February 2026}
@@ -57,7 +58,7 @@ Human-AI Research Discovery}
 \hypersetup{
 pdftitle={From Static Repositories to Agentic Knowledge Webs: ResearchTwin and the S-Index for Federated Human-AI Research Discovery},
 pdfsubject={cs.DL, cs.IR, cs.AI},
-pdfauthor={Martin Frasch},
+pdfauthor={Martin G. Frasch},
 pdfkeywords={digital twin, research impact metrics, FAIR principles, retrieval-augmented generation, federated architecture, scholarly communication, inter-agentic discovery},
 }
 
@@ -65,7 +66,7 @@ pdfkeywords={digital twin, research impact metrics, FAIR principles, retrieval-a
 \maketitle
 
 \begin{abstract}
-The exponential growth of scientific literature, datasets, and code repositories has created a \emph{discovery bottleneck} that impedes knowledge synthesis, reproducibility, and cross-disciplinary collaboration. Traditional dissemination formats---static PDFs, siloed code hosting, and fragmented data repositories---fail to represent the interconnected narrative of modern research. Conventional impact metrics such as the H-index measure citation counts alone, neglecting the substantial contributions of reusable code and shared datasets. We present \textbf{ResearchTwin}, an open-source federated platform that transforms a researcher's complete scholarly output into a conversational digital twin, together with a preliminary evaluation of its deployed prototype. The system is built on a \emph{Bimodal Glial-Neural Optimization} (BGNO) architecture comprising a Multi-Modal Connector Layer, a Glial Layer for caching and rate management, and a Neural Layer implementing Retrieval-Augmented Generation with Claude. We formalize the \textbf{S-index}, building on our earlier QIC framework for data-centric impact measurement \cite{frasch2025qic}, into a composite metric that extends FAIR principles to quantify the multi-modal impact of research artifacts. A case study comparing two researchers with similar H-indexes but substantially different S-indexes demonstrates that the metric captures dimensions of impact---particularly dataset and code contributions---invisible to citation-based measures alone. ResearchTwin exposes an inter-agentic discovery API using Schema.org typed responses, enabling autonomous AI agents to navigate researcher profiles via HATEOAS links and discover cross-lab synergies. A three-tier federated architecture---Local Nodes, Hubs, and Hosted Edges---preserves data sovereignty while enabling global discoverability. The platform is released as open-source software at \url{https://github.com/martinfrasch/ResearchTwin}.
+The exponential growth of scientific literature, datasets, and code repositories has created a \emph{discovery bottleneck} that impedes knowledge synthesis, reproducibility, and cross-disciplinary collaboration. Traditional dissemination formats---static PDFs, siloed code hosting, and fragmented data repositories---fail to represent the interconnected narrative of modern research. Conventional impact metrics such as the H-index measure citation counts alone, neglecting the substantial contributions of reusable code and shared datasets. We present \textbf{ResearchTwin}, an open-source federated platform that transforms a researcher's complete scholarly output into a conversational digital twin, together with a preliminary evaluation of its deployed prototype. The system is built on a \emph{Bimodal Glial-Neural Optimization} (BGNO) architecture comprising a Multi-Modal Connector Layer, a Glial Layer for caching and rate management, and a Neural Layer implementing Retrieval-Augmented Generation with Claude. We formalize the \textbf{S-index}, building on our earlier QIC framework for data-centric impact measurement \cite{frasch2025qic}, into a composite metric that extends FAIR principles---via a binary accessibility/licensing gate, field-normalized impact scoring, and geometric collaboration scaling---to quantify the multi-modal impact of research artifacts. A case study comparing two researchers with similar H-indexes but substantially different S-indexes demonstrates that the metric captures dimensions of impact---particularly dataset and code contributions---invisible to citation-based measures alone. ResearchTwin exposes an inter-agentic discovery API using Schema.org typed responses, enabling autonomous AI agents to navigate researcher profiles via HATEOAS links and discover cross-lab synergies. A three-tier federated architecture---Local Nodes, Hubs, and Hosted Edges---preserves data sovereignty while enabling global discoverability. The platform is released as open-source software at \url{https://github.com/martinfrasch/ResearchTwin}.
 \end{abstract}
 
 \keywords{digital twin \and research impact metrics \and FAIR principles \and retrieval-augmented generation \and federated architecture \and scholarly communication \and inter-agentic discovery}
@@ -223,63 +224,60 @@ This architecture intentionally avoids maintaining a persistent vector store or 
 
 The S-index extends traditional citation-based metrics by quantifying the multi-modal impact of a researcher's complete scholarly output: publications, datasets, and code. It builds on the QIC framework introduced in our earlier work \cite{frasch2025qic}, which proposed per-object Quality--Impact--Collaboration scoring for individual datasets; here we generalize the framework to encompass code repositories and integrate it with a publication-based Paper Impact term into a unified researcher-level metric. The formal specification is maintained at \url{https://github.com/martinfrasch/S-index}.
 
-\subsection{Per-Object Quality Score (FAIR-Based)}
+\subsection{Per-Object Quality Score (FAIR Gate)}
 
-For each research artifact $j$ (dataset or code repository), we compute a Quality score $Q_j$ grounded in the FAIR principles:
+For each research artifact $j$ (dataset or code repository), we compute a Quality score $Q_j$ grounded in the FAIR principles. Rather than scoring four FAIR dimensions independently, we enforce a \emph{binary gate} on the two most fundamental requirements---public accessibility and explicit licensing---and then award additive bonuses for additional quality indicators:
 
 \begin{definition}[Quality Score]
-Let $F_j, A_j, I_{q,j}, R_j \in [0, 10]$ denote the Findability, Accessibility, Interoperability, and Reusability scores of artifact $j$, respectively. The Quality score is:
+Let $p_j \in \{0,1\}$ and $\ell_j \in \{0,1\}$ indicate whether artifact $j$ is publicly accessible and carries an explicit license, respectively. Let $b_j^{\text{DOI}}, b_j^{\text{doc}}, b_j^{\text{fmt}} \in \{0,1\}$ indicate the presence of a persistent identifier (DOI), documentation (README or description $> 50$ characters), and a standard format or type classification. The Quality score is:
 \begin{equation}
-Q_j = 0.3\, F_j + 0.3\, A_j + 0.2\, I_{q,j} + 0.2\, R_j.
+Q_j = \underbrace{5 \cdot p_j \cdot \ell_j}_{\text{FAIR gate}} \times \Bigl(1 + \underbrace{0.5\, b_j^{\text{DOI}} + 0.3\, b_j^{\text{doc}} + 0.2\, b_j^{\text{fmt}}}_{\text{bonus terms}}\Bigr).
 \label{eq:quality}
 \end{equation}
 \end{definition}
 
-Each FAIR dimension is operationalized through metadata-derived indicators:
+The FAIR gate enforces a hard prerequisite: artifacts that are not publicly accessible \emph{or} lack an explicit license receive $Q_j = 0$ regardless of other indicators, encoding the principle that failing the two most fundamental FAIR requirements---Accessibility and Reusability---should disqualify an artifact from contributing to impact. The bonus terms reward additional quality indicators (Findability via DOI, documentation, standard formatting) multiplicatively, yielding a Quality range of $Q_j \in \{0\} \cup [5, 10]$.
 
 \begin{table}[ht]
 \centering
-\caption{FAIR-based Quality Score operationalization. Points are additive within each dimension, capped at 10.}
+\caption{Quality Score operationalization. The FAIR gate requires both conditions; bonus terms are additive within the multiplier.}
 \label{tab:fair}
 \small
-\begin{tabular}{@{}llr@{}}
+\begin{tabular}{@{}llcr@{}}
 \toprule
-\textbf{Dimension} & \textbf{Indicator} & \textbf{Points} \\
+\textbf{Component} & \textbf{Indicator} & \textbf{Symbol} & \textbf{Value} \\
 \midrule
-\multirow{3}{*}{Findability ($F$)} & Has DOI & +6 \\
- & Has title & +2 \\
- & Has description or categories & +2 \\
+\multirow{2}{*}{FAIR Gate} & Publicly accessible & $p_j$ & $\{0,1\}$ \\
+ & Explicit license & $\ell_j$ & $\{0,1\}$ \\
 \midrule
-\multirow{3}{*}{Accessibility ($A$)} & Has public URL & +5 \\
- & Flagged as public & +3 \\
- & Files present & +2 \\
+\multirow{3}{*}{Bonus Terms} & Has DOI (persistent identifier) & $b_j^{\text{DOI}}$ & $+0.5$ \\
+ & Has README or description $> 50$ chars & $b_j^{\text{doc}}$ & $+0.3$ \\
+ & Standard format or type classification & $b_j^{\text{fmt}}$ & $+0.2$ \\
 \midrule
-\multirow{3}{*}{Interoperability ($I_q$)} & Typed (dataset/software/code) & +4 \\
- & Has DOI (standard identifier) & +3 \\
- & Has categories & +3 \\
-\midrule
-\multirow{3}{*}{Reusability ($R$)} & Has license & +5 \\
- & Description $> 50$ characters & +3 \\
- & Has README or multiple files & +2 \\
+\multicolumn{3}{@{}l}{Quality range: $Q_j \in \{0\} \cup [5, 10]$} & \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The weighting in Equation~\ref{eq:quality} assigns equal importance to Findability and Accessibility (0.3 each), reflecting that artifacts must first be discoverable and accessible before interoperability and reusability become relevant.
+This design is deliberately simpler than the v1 formulation in our earlier QIC work \cite{frasch2025qic}, which scored four FAIR dimensions independently with twelve indicators. The binary gate captures the essential insight---that unfindable or unlicensed artifacts have zero practical reuse value---while the three bonus terms are transparent and easily verifiable from metadata alone.
 
 \subsection{Impact Score}
 
-The Impact score captures actual reuse of the artifact, measured through platform-specific engagement metrics:
+The Impact score captures actual reuse of the artifact, normalized against a field-specific median to enable cross-discipline comparison:
 
 \begin{definition}[Impact Score]
-Let $r_j$ denote the number of reuse events for artifact $j$. The Impact score is:
+Let $r_j$ denote the number of reuse events for artifact $j$, and let $\mu_t > 0$ denote the median reuse count for artifacts of type $t$ (dataset or code repository) in the deployment population. The Impact score is:
 \begin{equation}
-I_j = 1 + \ln(1 + r_j).
+I_j = 1 + \ln\!\Bigl(1 + \frac{r_j}{\mu_t}\Bigr).
 \label{eq:impact}
 \end{equation}
 \end{definition}
 
-The logarithmic transformation ensures diminishing returns at scale, preventing a single viral artifact from dominating the metric. The additive constant $1$ guarantees $I_j \geq 1$ for all artifacts, including those with zero observed reuse. Reuse events are source-specific:
+The field normalization by $\mu_t$ addresses a key limitation of raw reuse counts: a dataset with 250 downloads in a field where the median is 50 represents a $5\times$ above-median artifact, whereas the same 250 downloads in a field where the median is 1{,}000 represents a below-median artifact. The logarithmic transformation ensures diminishing returns at scale---a $200\times$ increase in relative reuse yields only ${\sim}4.5\times$ more impact---preventing a single viral artifact from dominating the metric. The additive constant $1$ guarantees $I_j \geq 1$ for all artifacts, including those with zero observed reuse.
+
+In the current deployment, we use $\mu_{\text{dataset}} = 50$ (median Figshare downloads) and $\mu_{\text{code}} = 10$ (median weighted fork count for research repositories). These values are deployment-specific baselines; future calibration will derive field medians from larger population samples (Section~\ref{sec:future}).
+
+Reuse events are source-specific:
 
 \begin{itemize}[leftmargin=*]
     \item \textbf{Figshare datasets}: $r_j = d_j + \lfloor v_j / 10 \rfloor$, where $d_j$ is the download count and $v_j$ is the view count. Views are discounted by a factor of 10 relative to downloads, as downloads represent a stronger signal of intent to reuse.
@@ -293,12 +291,12 @@ The Collaboration score rewards artifacts produced through multi-author, multi-i
 \begin{definition}[Collaboration Score]
 Let $N_a$ denote the number of authors and $N_i$ the number of distinct institutions contributing to artifact $j$. The Collaboration score is:
 \begin{equation}
-C_j = \bigl(1 + \ln(N_a)\bigr) \times \bigl(1 + 0.5\, \ln(N_i)\bigr).
+C_j = \sqrt{N_a \times N_i}.
 \label{eq:collaboration}
 \end{equation}
 \end{definition}
 
-The logarithmic scaling of both terms reflects the observation that collaboration value grows sub-linearly with team size. The institutional diversity term is weighted at $0.5$ relative to author count, acknowledging that inter-institutional collaboration carries additional coordination costs that signal higher-impact work.
+The geometric mean treats author count and institutional diversity as equally important dimensions of collaboration breadth, avoiding the need for an arbitrary weighting parameter between them. A solo-author, single-institution artifact receives $C_j = 1$, providing a neutral baseline. The sub-linear scaling (via the square root) reflects the observation that collaboration value grows with diminishing returns as teams expand: doubling a team from 6 to 12 authors adds less marginal collaboration signal than growing from 1 to 2.
 
 \subsection{Per-Object Score}
 
@@ -310,7 +308,7 @@ s_j = Q_j \times I_j \times C_j.
 \end{equation}
 \end{definition}
 
-The multiplicative structure ensures that all three dimensions must be non-trivially satisfied: high quality with zero impact, or high impact with poor quality, both yield low scores.
+The multiplicative structure, combined with the FAIR gate in the Quality component, provides strict enforcement: an artifact that is not publicly accessible or lacks an explicit license receives $s_j = 0$ regardless of its reuse metrics or collaboration breadth. This encodes the principle that FAIR compliance is a prerequisite for impact, not merely a bonus.
 
 \subsection{Paper Impact Term}
 
@@ -342,19 +340,21 @@ The S-index satisfies $S_i \geq 0$ for all researchers $i$. Furthermore, $S_i$ i
 \end{proposition}
 
 \begin{proof}
-Each component score $Q_j, I_j, C_j \geq 0$ by construction (sums of non-negative terms with $\ln(1 + x) \geq 0$ for $x \geq 0$), hence $s_j \geq 0$. The Paper Impact term $P \geq 0$ since $h \geq 0$ and $\log_{10}(c+1) \geq 0$. As $S_i$ is a sum of non-negative terms, $S_i \geq 0$. Monotonicity follows from the fact that each sub-expression is non-decreasing in its respective input variables.
+The Quality score satisfies $Q_j \geq 0$: the FAIR gate produces either $0$ or $5$, and the bonus multiplier $(1 + b) \geq 1$. The Impact score satisfies $I_j \geq 1$ since $\ln(1 + r_j/\mu_t) \geq 0$ for $r_j, \mu_t \geq 0$. The Collaboration score satisfies $C_j \geq 0$ as the square root of non-negative terms, with $C_j \geq 1$ when $N_a, N_i \geq 1$. Hence $s_j = Q_j \times I_j \times C_j \geq 0$. The Paper Impact term $P \geq 0$ since $h \geq 0$ and $\log_{10}(c+1) \geq 0$. As $S_i$ is a sum of non-negative terms, $S_i \geq 0$. Monotonicity follows from the fact that each sub-expression is non-decreasing in its respective input variables; the FAIR gate introduces a discontinuity at the public/licensed threshold but remains monotonically non-decreasing.
 \end{proof}
 
 \subsection{Sensitivity Analysis}
 \label{sec:sensitivity}
 
-We acknowledge that the parameterization of the S-index---including the Quality weights, reuse event weightings, and Collaboration score coefficients---is heuristic in nature. The current values represent an informed initial parameterization rather than empirically calibrated constants. This subsection examines the sensitivity of the metric to these choices.
+We acknowledge that the parameterization of the S-index---including the FAIR gate threshold, bonus weights, field medians, and reuse event weightings---represents an informed initial design rather than empirically calibrated constants. This subsection examines the sensitivity of the metric to these choices.
 
-\paragraph{Quality score weights.} The weights in Equation~\ref{eq:quality} ($w_F = w_A = 0.3$, $w_I = w_R = 0.2$) prioritize Findability and Accessibility over Interoperability and Reusability. This reflects a design choice: an artifact that cannot be found or accessed has zero practical impact regardless of its interoperability. Under equal weighting ($w = 0.25$ for all four dimensions), Quality scores shift by at most $\pm 5\%$ for typical artifacts in our deployment, because most well-curated artifacts score similarly across all four FAIR dimensions. The ranking of artifacts by Quality score is preserved in $>90\%$ of cases under equal weighting, suggesting moderate robustness. However, the choice becomes consequential for artifacts with high Findability/Accessibility but low Interoperability (e.g., datasets with DOIs but no standard format), which would be penalized more heavily under equal weights.
+\paragraph{FAIR gate and bonus weights.} The binary gate ($Q_j = 0$ unless both public and licensed) is by design a hard threshold rather than a continuous gradient, and we consider this the least controversial parameter choice: an artifact that is neither publicly accessible nor explicitly licensed has, by definition, zero reuse value under FAIR principles. The bonus weights ($+0.5$ for DOI, $+0.3$ for documentation, $+0.2$ for standard format) affect the range of non-zero Quality scores ($Q_j \in [5, 10]$), a $2\times$ dynamic range. Under alternative weightings (e.g., equal $+1/3$ for all three bonuses), Quality scores shift by at most $\pm 8\%$ for typical artifacts, and rank ordering is preserved in $>95\%$ of cases. The gate-plus-bonus structure is thus substantially more robust than the v1 formulation's four-way FAIR weighting, because the gate handles the dominant variance (zero vs.\ non-zero) while the bonuses modulate a narrow band.
 
 \paragraph{Reuse event weightings.} The fork $= 3\times$ stars weighting for GitHub repositories encodes the judgment that forking---which requires creating a working copy of the codebase---represents a substantially stronger signal of active code reuse than starring, which functions as social bookmarking. The views$/10$ discounting for Figshare similarly reflects that page views are a weaker engagement signal than downloads. While these ratios are not empirically derived, they are directionally consistent with studies of GitHub engagement patterns showing that forks correlate more strongly with downstream code reuse than stars. Under alternative parameterizations (e.g., fork $= 2\times$ stars or fork $= 5\times$ stars), the Impact score for repositories changes by $< 15\%$ for repositories with typical star-to-fork ratios (approximately $3{:}1$ to $10{:}1$), and per-object rank ordering is preserved for the majority of cases.
 
-\paragraph{Current status and planned refinement.} We explicitly frame the present parameterization as \textbf{v1.0 baselines}: informed initial values that capture the directional intent of the S-index---rewarding FAIR-compliant, actively reused, collaboratively produced research artifacts---but that have not yet been validated against external assessments. The planned calibration procedure consists of three stages: (1)~assembling a diverse panel of 20--30 researchers across disciplines (theoretical, experimental, computational) and career stages; (2)~soliciting expert assessments of each researcher's ``multi-modal impact'' via structured rubrics; and (3)~optimizing QIC weights to maximize rank correlation (Kendall's $\tau$) between S-index rankings and expert consensus rankings. The modular QIC structure is designed to facilitate such calibration: weights can be adjusted independently for each component without altering the overall framework, and the additive structure of Equation~\ref{eq:sindex} ensures that recalibrating one component (e.g., the fork-to-star ratio) does not invalidate the others.
+\paragraph{Field medians.} The field-median normalization in Equation~\ref{eq:impact} introduces a new calibration parameter $\mu_t$ that directly affects cross-discipline comparability. In the current deployment, $\mu_{\text{dataset}} = 50$ and $\mu_{\text{code}} = 10$ are order-of-magnitude estimates. A $2\times$ change in $\mu_t$ shifts the Impact score by $\ln(2) \approx 0.69$ for above-median artifacts---a moderate effect that preserves rank ordering among artifacts of the same type. However, the \emph{ratio} between dataset and code medians ($\mu_{\text{dataset}} / \mu_{\text{code}}$) affects cross-type comparisons and requires empirical grounding from larger population samples.
+
+\paragraph{Current status and planned refinement.} We frame the present parameterization as \textbf{v2.0 baselines}: a substantial simplification over the v1 formulation \cite{frasch2025qic} that replaces twelve FAIR indicators with a binary gate plus three transparent bonuses, adds field normalization for cross-discipline comparability, and eliminates the arbitrary collaboration weighting parameter. These changes reduce the number of free parameters while preserving the directional intent of the S-index. The planned calibration procedure consists of three stages: (1)~assembling a diverse panel of 20--30 researchers across disciplines (theoretical, experimental, computational) and career stages; (2)~soliciting expert assessments of each researcher's ``multi-modal impact'' via structured rubrics; and (3)~optimizing remaining parameters (bonus weights, field medians, reuse event weightings) to maximize rank correlation (Kendall's $\tau$) between S-index rankings and expert consensus rankings. The modular QIC structure facilitates such calibration: the FAIR gate, field medians, and bonus weights can each be adjusted independently without altering the overall framework.
 
 % ============================================================================
 \section{Inter-Agentic Discovery Protocol}
@@ -607,7 +607,7 @@ Several limitations should be acknowledged:
     \item \textbf{No full-text indexing}: The current system operates on metadata and abstracts only, which limits the Digital Twin's ability to answer deep methodological questions whose answers reside only in the body of a paper. Full-text search would substantially improve retrieval quality but raises copyright and storage challenges. The federated architecture offers a natural resolution: \emph{Local Nodes} (Tier~1), where the researcher owns their PDFs, could perform full-text indexing over a local embedding store; \emph{Hosted Edges} (Tier~3) would continue operating on metadata only, avoiding copyright concerns. This tiered approach to full-text access---local-full, hosted-metadata---is planned for a future release (Section~\ref{sec:future}).
     \item \textbf{Limited connector coverage}: The current four connectors (Semantic Scholar, Google Scholar, GitHub, Figshare) do not cover PubMed, arXiv, Zenodo, Dryad, or domain-specific repositories. This limits applicability in fields where these sources are primary.
     \item \textbf{Google Scholar access fragility}: Google Scholar does not provide an official API. The \texttt{scholarly} library relies on web scraping, which is subject to rate limiting, IP blocking, and CAPTCHA challenges. We acknowledge the tension between building research infrastructure on unauthorized scraping: describing a system as ``robust'' while depending on an inherently fragile, unofficial access method is a genuine contradiction. In the current architecture, Google Scholar serves as a \emph{supplementary} source rather than a critical dependency: the system degrades gracefully to Semantic Scholar alone when Google Scholar is unavailable, and the aggressive 48-hour cache TTL ensures that at most one scraping request per researcher occurs every two days. Nevertheless, long-term sustainability requires migration to fully authorized sources. We identify \textbf{OpenAlex} and \textbf{Crossref} as the preferred replacements: both provide official, stable, rate-limit-transparent APIs; OpenAlex offers author disambiguation, institutional affiliation data, and citation counts comparable to Google Scholar's coverage, while Crossref provides authoritative DOI-level metadata and funding information. These sources also align more naturally with the FAIR principles the S-index advocates. The migration is architecturally straightforward---the connector abstraction allows drop-in replacement without affecting downstream components---and is prioritized in our roadmap (Section~\ref{sec:future}).
-    \item \textbf{S-index calibration}: The QIC weights (Table~\ref{tab:fair}) and reuse event weightings (e.g., forks $= 3\times$ stars) are heuristic rather than empirically calibrated (see Section~\ref{sec:sensitivity} for a sensitivity analysis). Large-scale validation studies correlating S-index scores with expert assessments are needed to refine these parameters.
+    \item \textbf{S-index calibration}: The bonus weights (Table~\ref{tab:fair}), field medians, and reuse event weightings (e.g., forks $= 3\times$ stars) are heuristic rather than empirically calibrated (see Section~\ref{sec:sensitivity} for a sensitivity analysis). The v2 formulation reduces the number of free parameters relative to v1 but does not eliminate calibration needs entirely. Large-scale validation studies correlating S-index scores with expert assessments are needed to refine these parameters.
     \item \textbf{Hub tier not yet deployed}: The Tier 2 Hub layer is specified but not yet implemented, limiting cross-institutional federation to the Hosted Edge model.
 \end{itemize}
 
@@ -627,7 +627,7 @@ Several directions for future development are planned:
     \item \textbf{Hub federation protocol}: Implementation of the Tier 2 Hub layer with a defined federation protocol (potentially based on ActivityPub) for cross-institutional discovery.
     \item \textbf{Full-text semantic search}: Tiered full-text indexing where Local Nodes (Tier~1) perform embedding-based retrieval over researcher-owned PDFs, while Hosted Edges (Tier~3) continue operating on metadata only, preserving copyright compliance at the hosted tier while enabling deep technical question-answering on self-hosted nodes.
     \item \textbf{Collaborative filtering}: Researcher recommendation based on artifact similarity, citation overlap, and complementary methodological expertise.
-    \item \textbf{S-index calibration}: Empirical studies correlating S-index scores with expert assessments of research impact across a diverse panel of 20--30 researchers spanning theoretical, experimental, and computational disciplines, enabling data-driven refinement of the v1.0 baseline QIC weights.
+    \item \textbf{S-index calibration}: Empirical studies correlating S-index scores with expert assessments of research impact across a diverse panel of 20--30 researchers spanning theoretical, experimental, and computational disciplines, enabling data-driven refinement of field medians $\mu_t$, bonus weights, and reuse event weightings in the v2.0 formulation.
     \item \textbf{Expanded evaluation}: Deployment to 10--20 researchers across diverse fields to characterize S-index behavior across profiles with varying publication-to-data-to-code ratios, including systematic comparison of $\max$-merged citation counts against curated databases (Web of Science, Scopus).
     \item \textbf{Multi-language support}: Internationalization of the platform interface and support for non-English research metadata.
     \item \textbf{Institutional dashboards}: Aggregated S-index analytics at the department, laboratory, or institutional level for research assessment and strategic planning.
@@ -640,7 +640,7 @@ Several directions for future development are planned:
 
 We have presented ResearchTwin, an open-source federated platform that transforms a researcher's publications, datasets, and code into a conversational digital twin. This paper serves as a \emph{system description with preliminary evaluation}: it documents the architecture, formalizes the S-index metric, and provides initial evidence of its discriminatory power through a two-researcher case study.
 
-The BGNO architecture cleanly separates data management concerns (caching, rate limiting, context assembly) from generative intelligence (RAG with a large language model), enabling scalable and cost-effective operation. The S-index provides a formally defined, FAIR-grounded composite metric that captures dimensions of research impact---code reuse and data sharing---invisible to citation-only measures such as the H-index. Our preliminary evaluation demonstrates that researchers with comparable H-indexes can exhibit substantially different S-index scores when their non-publication outputs differ, validating the metric's conceptual contribution. However, we emphasize that the current QIC parameterization is a principled but heuristic baseline; rigorous empirical calibration against expert assessments of research impact remains essential future work before the S-index can be recommended for evaluative purposes.
+The BGNO architecture cleanly separates data management concerns (caching, rate limiting, context assembly) from generative intelligence (RAG with a large language model), enabling scalable and cost-effective operation. The S-index provides a formally defined, FAIR-grounded composite metric that captures dimensions of research impact---code reuse and data sharing---invisible to citation-only measures such as the H-index. Our preliminary evaluation demonstrates that researchers with comparable H-indexes can exhibit substantially different S-index scores when their non-publication outputs differ, validating the metric's conceptual contribution. However, we emphasize that the current v2 parameterization---while substantially simplified from the v1 formulation through the FAIR gate, field normalization, and parameter-free collaboration term---remains a principled but heuristic baseline; rigorous empirical calibration against expert assessments of research impact remains essential future work before the S-index can be recommended for evaluative purposes.
 
 The inter-agentic discovery API, built on Schema.org types and HATEOAS navigation, together with the official MCP server registered in the MCP Registry (\texttt{io.github.martinfrasch/researchtwin}), positions ResearchTwin as infrastructure for an emerging paradigm in which AI agents autonomously discover research synergies across institutional boundaries. The three-tier federated architecture ensures that this discoverability does not come at the cost of data sovereignty.
 

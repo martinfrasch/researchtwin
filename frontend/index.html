@@ -60,6 +60,32 @@
         .tooltip .tt-meta { color: #8899aa; font-size: 0.72rem; }
         .tooltip .tt-score { color: #2ecc71; font-size: 0.72rem; margin-top: 0.2rem; }
 
+        /* Hero / Landing */
+        .hero { text-align: center; padding: 2rem 1.5rem 3rem; max-width: 800px; margin: 0 auto; }
+        .hero-description { font-size: 1rem; color: #8899aa; line-height: 1.6; margin-bottom: 2rem; max-width: 600px; margin-left: auto; margin-right: auto; }
+        .hero-description strong { color: #e0e0e0; }
+        .network-stats { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; margin-bottom: 2.5rem; }
+        .network-stat { text-align: center; }
+        .network-stat .value { font-size: 1.8rem; font-weight: 700; background: linear-gradient(135deg, #3498db, #2ecc71); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .network-stat .label { font-size: 0.7rem; color: #667788; text-transform: uppercase; letter-spacing: 0.05em; }
+        .hero h2 { font-size: 1.1rem; color: #8899aa; margin-bottom: 1rem; font-weight: 400; }
+        .researcher-cards { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }
+        .researcher-card {
+            background: #131825; border: 1px solid #ffffff10; border-radius: 12px;
+            padding: 1.5rem 2rem; min-width: 220px; max-width: 280px; cursor: pointer;
+            transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+        }
+        .researcher-card:hover { border-color: #3498db66; transform: translateY(-2px); box-shadow: 0 4px 20px rgba(52,152,219,0.1); }
+        .researcher-card .card-name { font-size: 1rem; font-weight: 600; color: #e0e0e0; margin-bottom: 0.5rem; }
+        .researcher-card .card-stats { font-size: 0.78rem; color: #667788; line-height: 1.6; }
+        .researcher-card .card-stats .card-sindex { font-size: 1.1rem; font-weight: 700; background: linear-gradient(135deg, #3498db, #2ecc71); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .researcher-card .card-loading { color: #556677; font-size: 0.78rem; }
+
+        /* Back link */
+        .back-link { display: none; text-align: center; margin-bottom: 0.5rem; }
+        .back-link a { color: #3498db; text-decoration: none; font-size: 0.8rem; }
+        .back-link a:hover { text-decoration: underline; }
+
         /* Loading */
         .loading { text-align: center; padding: 4rem; color: #667788; }
         .loading .spinner { display: inline-block; width: 24px; height: 24px; border: 2px solid #3498db33; border-top-color: #3498db; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 0.5rem; }
@@ -95,6 +121,23 @@
         </div>
         <div class="sources" id="sources"></div>
     </div>
+
+    <div id="hero" class="hero">
+        <p class="hero-description">
+            <strong>ResearchTwin</strong> transforms your publications, code, and datasets into a live knowledge graph with the <strong>S-Index</strong> — an open metric for research quality, impact, and collaboration.
+        </p>
+        <div class="network-stats" id="network-stats">
+            <div class="network-stat"><div class="value" id="ns-researchers">-</div><div class="label">Researchers</div></div>
+            <div class="network-stat"><div class="value" id="ns-papers">-</div><div class="label">Papers</div></div>
+            <div class="network-stat"><div class="value" id="ns-citations">-</div><div class="label">Citations</div></div>
+            <div class="network-stat"><div class="value" id="ns-repos">-</div><div class="label">Repos</div></div>
+            <div class="network-stat"><div class="value" id="ns-datasets">-</div><div class="label">Datasets</div></div>
+        </div>
+        <h2>Explore the Network</h2>
+        <div class="researcher-cards" id="researcher-cards"></div>
+    </div>
+
+    <div class="back-link" id="back-link"><a href="/">&#8592; Back to network overview</a></div>
 
     <div class="metrics" id="metrics"></div>
 
@@ -170,6 +213,85 @@
         history.replaceState(null, '', url);
     }
 
+    function showLandingState() {
+        document.getElementById('hero').style.display = '';
+        document.getElementById('back-link').style.display = 'none';
+        document.getElementById('metrics').innerHTML = '';
+        document.getElementById('sources').innerHTML = '';
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('network-canvas').style.display = 'none';
+        if (animId) { cancelAnimationFrame(animId); animId = null; }
+        // Reset URL
+        const url = new URL(window.location);
+        url.searchParams.delete('researcher');
+        history.replaceState(null, '', url);
+        currentSlug = null;
+        // Reset dropdown to placeholder
+        const select = document.getElementById('researcher-select');
+        if (select.options[0] && select.options[0].value === '') select.selectedIndex = 0;
+    }
+
+    function showProfileState() {
+        document.getElementById('hero').style.display = 'none';
+        document.getElementById('back-link').style.display = 'block';
+        document.getElementById('network-canvas').style.display = '';
+    }
+
+    async function loadResearcherCards(list) {
+        const container = document.getElementById('researcher-cards');
+        // Render placeholder cards immediately
+        container.innerHTML = list.map(r =>
+            `<div class="researcher-card" data-slug="${r.slug}">
+                <div class="card-name">${r.display_name}</div>
+                <div class="card-stats"><span class="card-loading">Loading stats...</span></div>
+            </div>`
+        ).join('');
+
+        // Attach click handlers
+        container.querySelectorAll('.researcher-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const slug = card.dataset.slug;
+                const select = document.getElementById('researcher-select');
+                select.value = slug;
+                currentSlug = slug;
+                setSlugInURL(slug);
+                showProfileState();
+                loadResearcher(slug);
+            });
+        });
+
+        // Fetch stats for each researcher in parallel
+        const results = await Promise.allSettled(
+            list.map(r => fetch(`/api/context/${r.slug}`).then(resp => resp.json()))
+        );
+
+        let totalPapers = 0, totalCitations = 0, totalRepos = 0, totalDatasets = 0;
+
+        results.forEach((result, i) => {
+            const card = container.children[i];
+            if (result.status === 'fulfilled') {
+                const d = result.value;
+                const s = d.summary || {};
+                totalPapers += s.total_papers || 0;
+                totalCitations += s.total_citations || 0;
+                totalRepos += s.total_repos_scored || 0;
+                totalDatasets += s.total_datasets || 0;
+                card.querySelector('.card-stats').innerHTML =
+                    `<div class="card-sindex">${d.s_index?.toFixed(0) || '0'}</div>` +
+                    `S-Index &middot; ${s.total_papers || 0} papers &middot; ${(s.total_citations || 0).toLocaleString()} citations`;
+            } else {
+                card.querySelector('.card-stats').innerHTML = '<span class="card-loading">Stats unavailable</span>';
+            }
+        });
+
+        // Update network-wide stats
+        document.getElementById('ns-researchers').textContent = list.length;
+        document.getElementById('ns-papers').textContent = totalPapers.toLocaleString();
+        document.getElementById('ns-citations').textContent = totalCitations.toLocaleString();
+        document.getElementById('ns-repos').textContent = totalRepos;
+        document.getElementById('ns-datasets').textContent = totalDatasets;
+    }
+
     async function loadResearcherList() {
         const select = document.getElementById('researcher-select');
         try {
@@ -179,28 +301,38 @@
             const list = data.researchers || [];
             if (list.length === 0) throw new Error('No researchers configured');
 
-            select.innerHTML = list.map(r =>
-                `<option value="${r.slug}">${r.display_name}</option>`
-            ).join('');
+            // Build dropdown with placeholder
+            select.innerHTML =
+                '<option value="" disabled>Explore a researcher...</option>' +
+                list.map(r => `<option value="${r.slug}">${r.display_name}</option>`).join('');
             select.disabled = false;
-
-            // Pick slug from URL or default to first
-            const urlSlug = getSlugFromURL();
-            const validSlug = list.find(r => r.slug === urlSlug) ? urlSlug : list[0].slug;
-            select.value = validSlug;
-            setSlugInURL(validSlug);
-            currentSlug = validSlug;
 
             select.addEventListener('change', () => {
                 const newSlug = select.value;
-                if (newSlug !== currentSlug) {
+                if (newSlug && newSlug !== currentSlug) {
                     currentSlug = newSlug;
                     setSlugInURL(newSlug);
+                    showProfileState();
                     loadResearcher(newSlug);
                 }
             });
 
-            loadResearcher(validSlug);
+            // Check URL for direct researcher link
+            const urlSlug = getSlugFromURL();
+            const validSlug = list.find(r => r.slug === urlSlug) ? urlSlug : null;
+
+            if (validSlug) {
+                // Direct link to a researcher — load their profile
+                select.value = validSlug;
+                currentSlug = validSlug;
+                showProfileState();
+                loadResearcher(validSlug);
+            } else {
+                // No researcher specified — show landing state
+                select.selectedIndex = 0;
+                showLandingState();
+                loadResearcherCards(list);
+            }
         } catch (e) {
             select.innerHTML = `<option>Error loading researchers</option>`;
             document.getElementById('loading').innerHTML =

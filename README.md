@@ -139,6 +139,17 @@ This repository is part of the **[ResearchTwin Ecosystem](https://github.com/use
 
 ---
 
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [API Reference](docs/API.md) | Full REST API documentation with schemas and examples |
+| [Self-Hosting Guide](docs/SELF_HOSTING.md) | Tier 1 Local Node setup and configuration |
+| [Hub Federation Guide](docs/HUB_FEDERATION.md) | Tier 2 Hub architecture and setup (planned) |
+| [Security Policy](SECURITY.md) | Vulnerability reporting and security best practices |
+
+---
+
 ## Contributing
 
 Contributions welcome! See the [project board](https://github.com/users/martinfrasch/projects/8) for tracked issues.

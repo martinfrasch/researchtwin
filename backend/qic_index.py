@@ -12,6 +12,9 @@ Researcher:      S_i = P + Σ s_j
 
 import math
 
+from connectors.figshare import normalize_item as normalize_figshare_item
+from connectors.github_connector import normalize_item as normalize_github_item
+
 # Field medians for impact normalization (v2.0 deployment baselines)
 FIELD_MEDIANS = {"dataset": 50, "code": 10}
 
@@ -54,61 +57,38 @@ def _collaboration_score(n_authors: int, n_institutions: int = 1) -> float:
     return math.sqrt(n_a * n_i)
 
 
-def score_figshare_article(article: dict) -> dict:
-    """Compute S-Index v2 score for a single Figshare article."""
-    item = {
-        "is_public": True,
-        "license": article.get("license", ""),
-        "has_doi": bool(article.get("doi")),
-        "has_readme": bool(
-            article.get("description") and len(article.get("description", "")) > 50
-        ),
-        "is_standard_format": article.get("defined_type_name")
-        in ("dataset", "software", "code", "figure", "media", "poster", "presentation"),
-    }
+def score_item(item: dict) -> dict:
+    """Score a normalized item (dataset or code artifact).
+
+    Accepts the normalized schema:
+        title, source_type, is_public, license, has_doi, has_readme,
+        is_standard_format, reuse_events, n_authors, n_institutions
+    """
     quality = _quality_score(item)
-
-    reuse = (article.get("downloads", 0) or 0) + (article.get("views", 0) or 0) // 10
-    impact = _impact_score(reuse, "dataset")
-
-    n_authors = max(len(article.get("authors", []) or []), 1)
-    collab = _collaboration_score(n_authors, 1)
+    impact = _impact_score(item.get("reuse_events", 0), item.get("source_type", "code"))
+    collab = _collaboration_score(
+        item.get("n_authors", 1), item.get("n_institutions", 1)
+    )
 
     s = quality["Q"] * impact * collab
     return {
-        "title": article.get("title", ""),
+        "title": item.get("title", ""),
         "quality": quality["Q"],
         "fair_gate": quality["fair_gate"],
         "impact": round(impact, 3),
         "collaboration": round(collab, 3),
         "score": round(s, 3),
     }
+
+
+def score_figshare_article(article: dict) -> dict:
+    """Compute S-Index v2 score for a single Figshare article."""
+    return score_item(normalize_figshare_item(article))
 
 
 def score_github_repo(repo: dict) -> dict:
     """Compute S-Index v2 score for a single GitHub repo."""
-    item = {
-        "is_public": True,
-        "license": "present" if repo.get("has_license") else "",
-        "has_doi": False,
-        "has_readme": repo.get("has_readme", False),
-        "is_standard_format": True,
-    }
-    quality = _quality_score(item)
-
-    reuse = (repo.get("stars", 0) or 0) + (repo.get("forks", 0) or 0) * 3
-    impact = _impact_score(reuse, "code")
-    collab = _collaboration_score(1)
-
-    s = quality["Q"] * impact * collab
-    return {
-        "title": repo.get("name", ""),
-        "quality": quality["Q"],
-        "fair_gate": quality["fair_gate"],
-        "impact": round(impact, 3),
-        "collaboration": round(collab, 3),
-        "score": round(s, 3),
-    }
+    return score_item(normalize_github_item(repo))
 
 
 def compute_researcher_qic(

@@ -67,3 +67,19 @@ async def fetch_github_data(username: str) -> dict:
 
     cache.set(cache_key, result)
     return result
+
+
+def normalize_item(repo: dict) -> dict:
+    """Map a GitHub repo to the normalized scoring schema."""
+    return {
+        "title": repo.get("name", ""),
+        "source_type": "code",
+        "is_public": True,
+        "license": "present" if repo.get("has_license") else "",
+        "has_doi": False,
+        "has_readme": repo.get("has_readme", False),
+        "is_standard_format": True,
+        "reuse_events": (repo.get("stars", 0) or 0) + (repo.get("forks", 0) or 0) * 3,
+        "n_authors": 1,
+        "n_institutions": 1,
+    }

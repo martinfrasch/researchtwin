@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ResearchTwin Chat</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: transparent;
+    color: #e0e0e0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .widget {
+    background: linear-gradient(135deg, #0a0e17 0%, #131a2b 100%);
+    border: 1px solid rgba(99, 179, 237, 0.2);
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-height: 100vh;
+    position: relative;
+    overflow: hidden;
+  }
+  .widget::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #4fd1c5, #63b3ed, #b794f4);
+    z-index: 1;
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(99, 179, 237, 0.1);
+    flex-shrink: 0;
+  }
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .researcher-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+  }
+  .s-badge {
+    font-size: 11px;
+    color: #4fd1c5;
+    background: rgba(79, 209, 197, 0.1);
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+  .badge-link {
+    font-size: 11px;
+    color: #a0aec0;
+    text-decoration: none;
+  }
+  .badge-link:hover { color: #63b3ed; }
+
+  /* Setup panel */
+  .setup {
+    padding: 24px 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .setup h3 {
+    font-size: 14px;
+    color: #a0aec0;
+    font-weight: 500;
+  }
+  .setup label {
+    font-size: 12px;
+    color: #718096;
+    display: block;
+    margin-bottom: 4px;
+  }
+  .setup select, .setup input[type="password"] {
+    width: 100%;
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(99, 179, 237, 0.2);
+    border-radius: 8px;
+    color: #e0e0e0;
+    font-size: 13px;
+    outline: none;
+  }
+  .setup select:focus, .setup input:focus {
+    border-color: #63b3ed;
+  }
+  .setup-btn {
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #4fd1c5, #63b3ed);
+    border: none;
+    border-radius: 8px;
+    color: #0a0e17;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    margin-top: 8px;
+  }
+  .setup-btn:hover { opacity: 0.9; }
+  .setup-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .setup-note {
+    font-size: 11px;
+    color: #4a5568;
+    line-height: 1.4;
+  }
+
+  /* Messages area */
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .msg {
+    max-width: 88%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    word-wrap: break-word;
+  }
+  .msg-user {
+    align-self: flex-end;
+    background: rgba(99, 179, 237, 0.15);
+    border: 1px solid rgba(99, 179, 237, 0.2);
+    color: #e0e0e0;
+  }
+  .msg-bot {
+    align-self: flex-start;
+    background: rgba(79, 209, 197, 0.08);
+    border: 1px solid rgba(79, 209, 197, 0.15);
+    color: #e0e0e0;
+  }
+  .msg-bot h1, .msg-bot h2, .msg-bot h3, .msg-bot h4 {
+    color: #fff;
+    font-weight: 600;
+    margin: 8px 0 4px 0;
+    line-height: 1.3;
+  }
+  .msg-bot h1 { font-size: 15px; }
+  .msg-bot h2 { font-size: 14px; }
+  .msg-bot h3 { font-size: 13px; }
+  .msg-bot h4 { font-size: 13px; color: #a0aec0; }
+  .msg-bot h1:first-child, .msg-bot h2:first-child, .msg-bot h3:first-child { margin-top: 0; }
+  .msg-bot p { margin: 0 0 8px 0; }
+  .msg-bot p:last-child { margin-bottom: 0; }
+  .msg-bot strong { color: #fff; }
+  .msg-bot em { color: #a0aec0; font-style: italic; }
+  .msg-bot ul, .msg-bot ol { margin: 4px 0 8px 18px; padding: 0; }
+  .msg-bot li { margin-bottom: 2px; }
+  .msg-bot code {
+    background: rgba(255,255,255,0.08);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+    font-family: 'SF Mono', Monaco, monospace;
+  }
+  .msg-bot a { color: #63b3ed; text-decoration: underline; }
+  .msg-bot a:hover { color: #90cdf4; }
+  .msg-error {
+    align-self: center;
+    background: rgba(252, 129, 129, 0.1);
+    border: 1px solid rgba(252, 129, 129, 0.2);
+    color: #fc8181;
+    font-size: 12px;
+    text-align: center;
+  }
+  .msg-thinking {
+    align-self: flex-start;
+    color: #718096;
+    font-size: 12px;
+    padding: 8px 14px;
+  }
+  .dot-pulse { display: inline-block; animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,80%,100% { opacity:0.3; } 40% { opacity:1; } }
+
+  /* Input area */
+  .input-area {
+    padding: 12px 16px;
+    border-top: 1px solid rgba(99, 179, 237, 0.1);
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .input-area input {
+    flex: 1;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(99, 179, 237, 0.2);
+    border-radius: 8px;
+    color: #e0e0e0;
+    font-size: 13px;
+    outline: none;
+  }
+  .input-area input:focus { border-color: #63b3ed; }
+  .input-area input:disabled { opacity: 0.5; }
+  .send-btn {
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #4fd1c5, #63b3ed);
+    border: none;
+    border-radius: 8px;
+    color: #0a0e17;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .send-btn:hover { opacity: 0.9; }
+  .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .footer {
+    text-align: center;
+    padding: 6px;
+    flex-shrink: 0;
+  }
+  .footer a {
+    font-size: 10px;
+    color: #4a5568;
+    text-decoration: none;
+  }
+  .footer a:hover { color: #63b3ed; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="widget" id="widget">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <span class="researcher-name" id="researcherName">ResearchTwin</span>
+      <span class="s-badge hidden" id="sBadge"></span>
+    </div>
+    <a class="badge-link" href="https://researchtwin.net" target="_blank" rel="noopener">ResearchTwin</a>
+  </div>
+
+  <!-- Setup panel (shown until API key provided) -->
+  <div class="setup" id="setupPanel">
+    <h3>Connect your LLM to chat with this researcher's digital twin</h3>
+    <div>
+      <label>Provider</label>
+      <select id="providerSelect">
+        <option value="perplexity">Perplexity (sonar)</option>
+        <option value="openai">OpenAI (gpt-4o-mini)</option>
+      </select>
+    </div>
+    <div>
+      <label>API Key</label>
+      <input type="password" id="apiKeyInput" placeholder="Enter your API key...">
+    </div>
+    <button class="setup-btn" id="connectBtn" disabled>Connect</button>
+    <p class="setup-note">Your key is sent per-request and never stored on our servers. It is used only to generate responses about this researcher.</p>
+  </div>
+
+  <!-- Chat area (hidden until connected) -->
+  <div class="messages hidden" id="messages"></div>
+  <div class="input-area hidden" id="inputArea">
+    <input type="text" id="chatInput" placeholder="Ask about this researcher..." disabled>
+    <button class="send-btn" id="sendBtn" disabled>Send</button>
+  </div>
+
+  <div class="footer">
+    <a href="https://researchtwin.net" target="_blank" rel="noopener">Powered by ResearchTwin</a>
+  </div>
+</div>
+
+<script>
+(function() {
+  var params = new URLSearchParams(window.location.search);
+  var slug = params.get('slug') || '';
+  var base = params.get('base') || '';
+  var apiBase = base || 'https://researchtwin.net';
+
+  var provider = '';
+  var apiKey = '';
+  var sending = false;
+
+  var nameEl = document.getElementById('researcherName');
+  var badgeEl = document.getElementById('sBadge');
+  var setupPanel = document.getElementById('setupPanel');
+  var messagesEl = document.getElementById('messages');
+  var inputArea = document.getElementById('inputArea');
+  var chatInput = document.getElementById('chatInput');
+  var sendBtn = document.getElementById('sendBtn');
+  var connectBtn = document.getElementById('connectBtn');
+  var apiKeyInput = document.getElementById('apiKeyInput');
+  var providerSelect = document.getElementById('providerSelect');
+
+  if (!slug) {
+    nameEl.textContent = 'Error';
+    setupPanel.innerHTML = '<p class="setup-note" style="color:#fc8181;">Missing ?slug= parameter in URL.</p>';
+    return;
+  }
+
+  // Load researcher info
+  fetch(apiBase + '/api/context/' + encodeURIComponent(slug))
+    .then(function(r) { return r.ok ? r.json() : Promise.reject('Researcher not found'); })
+    .then(function(data) {
+      nameEl.textContent = data.display_name || slug;
+      badgeEl.textContent = 'S-Index ' + (data.s_index || 0).toFixed(0);
+      badgeEl.classList.remove('hidden');
+    })
+    .catch(function() {
+      nameEl.textContent = slug;
+    });
+
+  // Restore saved provider/key from sessionStorage
+  var savedProvider = sessionStorage.getItem('rt_provider');
+  var savedKey = sessionStorage.getItem('rt_key');
+  if (savedProvider) providerSelect.value = savedProvider;
+  if (savedKey) apiKeyInput.value = savedKey;
+
+  // Enable connect button when key is entered
+  apiKeyInput.addEventListener('input', function() {
+    connectBtn.disabled = !apiKeyInput.value.trim();
+  });
+  if (apiKeyInput.value.trim()) connectBtn.disabled = false;
+
+  connectBtn.addEventListener('click', function() {
+    provider = providerSelect.value;
+    apiKey = apiKeyInput.value.trim();
+    if (!apiKey) return;
+
+    sessionStorage.setItem('rt_provider', provider);
+    sessionStorage.setItem('rt_key', apiKey);
+
+    setupPanel.classList.add('hidden');
+    messagesEl.classList.remove('hidden');
+    inputArea.classList.remove('hidden');
+    chatInput.disabled = false;
+    sendBtn.disabled = false;
+    chatInput.focus();
+
+    addMessage('bot', 'Connected via ' + provider + '. Ask me anything about this researcher!');
+  });
+
+  sendBtn.addEventListener('click', sendMessage);
+  chatInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  function sendMessage() {
+    var text = chatInput.value.trim();
+    if (!text || sending) return;
+
+    addMessage('user', text);
+    chatInput.value = '';
+    sending = true;
+    chatInput.disabled = true;
+    sendBtn.disabled = true;
+
+    var thinkingEl = addMessage('thinking', '');
+
+    fetch(apiBase + '/chat/byok', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: text,
+        researcher_slug: slug,
+        api_key: apiKey,
+        provider: provider,
+      }),
+    })
+    .then(function(r) {
+      if (r.status === 401) throw new Error('Invalid API key. Check your key and try again.');
+      if (r.status === 429) throw new Error('Rate limit reached. Please wait a moment.');
+      if (r.status === 504) throw new Error('Request timed out. Try a shorter question.');
+      if (!r.ok) return r.json().then(function(d) { throw new Error(d.detail || 'Request failed'); });
+      return r.json();
+    })
+    .then(function(data) {
+      removeElement(thinkingEl);
+      addMessage('bot', data.reply);
+    })
+    .catch(function(err) {
+      removeElement(thinkingEl);
+      addMessage('error', err.message);
+    })
+    .finally(function() {
+      sending = false;
+      chatInput.disabled = false;
+      sendBtn.disabled = false;
+      chatInput.focus();
+    });
+  }
+
+  function renderMarkdown(text) {
+    // Sanitize HTML entities first
+    var s = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    // Code (inline)
+    s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+    // Bold
+    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    // Italic
+    s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    // Links
+    s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+    // Split into lines for block processing
+    var lines = s.split('\n');
+    var html = '';
+    var inList = false;
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      var heading = line.match(/^(#{1,4})\s+(.*)/);
+      var bullet = line.match(/^\s*[-*]\s+(.*)/);
+      var numbered = line.match(/^\s*\d+\.\s+(.*)/);
+      if (heading) {
+        if (inList) { html += '</' + inList + '>'; inList = false; }
+        var level = heading[1].length;
+        html += '<h' + level + '>' + heading[2] + '</h' + level + '>';
+      } else if (bullet) {
+        if (!inList) { html += '<ul>'; inList = 'ul'; }
+        html += '<li>' + bullet[1] + '</li>';
+      } else if (numbered) {
+        if (!inList) { html += '<ol>'; inList = 'ol'; }
+        html += '<li>' + numbered[1] + '</li>';
+      } else {
+        if (inList) { html += '</' + inList + '>'; inList = false; }
+        if (line.trim() === '') {
+          if (i > 0 && i < lines.length - 1) html += '</p><p>';
+        } else {
+          html += line + '<br>';
+        }
+      }
+    }
+    if (inList) html += '</' + inList + '>';
+    // Wrap in paragraph, clean up trailing br
+    html = '<p>' + html.replace(/<br>(<\/p>|$)/g, '$1') + '</p>';
+    html = html.replace(/<p><\/p>/g, '');
+    return html;
+  }
+
+  function addMessage(type, text) {
+    var el = document.createElement('div');
+    el.className = 'msg msg-' + type;
+    if (type === 'thinking') {
+      el.innerHTML = '<span class="dot-pulse">thinking</span>';
+    } else if (type === 'bot') {
+      el.innerHTML = renderMarkdown(text);
+    } else {
+      el.textContent = text;
+    }
+    messagesEl.appendChild(el);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return el;
+  }
+
+  function removeElement(el) {
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+  }
+})();
+</script>
+</body>
+</html>

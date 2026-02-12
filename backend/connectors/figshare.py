@@ -105,3 +105,23 @@ async def fetch_figshare_data(search_name: str) -> dict:
         cache.set(cache_key, result)
 
     return result
+
+
+def normalize_item(article: dict) -> dict:
+    """Map a Figshare article to the normalized scoring schema."""
+    return {
+        "title": article.get("title", ""),
+        "source_type": "dataset",
+        "is_public": True,
+        "license": article.get("license", ""),
+        "has_doi": bool(article.get("doi")),
+        "has_readme": bool(
+            article.get("description") and len(article.get("description", "")) > 50
+        ),
+        "is_standard_format": article.get("defined_type_name")
+        in ("dataset", "software", "code", "figure", "media", "poster", "presentation"),
+        "reuse_events": (article.get("downloads", 0) or 0)
+        + (article.get("views", 0) or 0) // 10,
+        "n_authors": max(len(article.get("authors", []) or []), 1),
+        "n_institutions": 1,
+    }

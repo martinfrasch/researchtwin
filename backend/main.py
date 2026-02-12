@@ -16,7 +16,7 @@ import researchers
 from connectors import fetch_author_data, fetch_github_data, fetch_figshare_data, fetch_scholar_data, fetch_affiliations
 from models import RegisterRequest, RegisterResponse, RequestUpdateRequest, ProfileUpdateRequest, ProfileUpdateResponse
 from qic_index import compute_researcher_qic
-from rag import build_context, chat_with_context
+from rag import build_context, chat_with_context, chat_with_byok
 
 logger = logging.getLogger("researchtwin")
 logger.setLevel(logging.INFO)
@@ -46,8 +46,8 @@ class RateLimiter:
 
 # Per-IP: 30 chat requests per hour
 _chat_ip_limiter = RateLimiter(max_requests=30, window_seconds=3600)
-# Global: 500 chat requests per day (cost cap ~$15/day)
-_chat_daily_limiter = RateLimiter(max_requests=500, window_seconds=86400)
+# Global: 150 chat requests per day (cost cap ~$5/day with Perplexity sonar)
+_chat_daily_limiter = RateLimiter(max_requests=150, window_seconds=86400)
 
 
 @asynccontextmanager
@@ -74,7 +74,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://researchtwin.net", "http://localhost:8000"],
+    allow_origins=["*"],
     allow_methods=["GET", "POST", "PATCH"],
     allow_headers=["Content-Type"],
 )
@@ -290,7 +290,7 @@ async def chat(req: ChatRequest, request: Request):
     except KeyError:
         raise HTTPException(status_code=404, detail="Unknown researcher")
 
-    if not os.environ.get("ANTHROPIC_API_KEY"):
+    if not os.environ.get("PERPLEXITY_API_KEY"):
         raise HTTPException(status_code=503, detail="Chat unavailable — no API key configured")
 
     logger.info("chat ip=%s slug=%s msg_len=%d", client_ip, req.researcher_slug, len(req.message))
@@ -305,6 +305,72 @@ async def chat(req: ChatRequest, request: Request):
         raise HTTPException(status_code=504, detail="Chat request timed out")
     except Exception:
         logger.exception("chat PIPELINE_ERROR ip=%s slug=%s", client_ip, req.researcher_slug)
+        raise HTTPException(status_code=502, detail="Pipeline error")
+
+    return ChatResponse(reply=reply, researcher_slug=req.researcher_slug)
+
+
+# ---------------------------------------------------------------------------
+# BYOK (Bring Your Own Key) chat — for embeddable widget
+# ---------------------------------------------------------------------------
+
+class BYOKChatRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=4096)
+    researcher_slug: str = Field(..., min_length=1, max_length=128)
+    api_key: str = Field(..., min_length=1, max_length=256)
+    provider: str = Field(default="perplexity")
+    model: str = Field(default="")
+
+    @field_validator('researcher_slug')
+    @classmethod
+    def validate_byok_slug(cls, v):
+        if not SLUG_RE.match(v):
+            raise ValueError('Invalid slug format')
+        return v
+
+    @field_validator('provider')
+    @classmethod
+    def validate_provider(cls, v):
+        from rag import LLM_PROVIDERS
+        if v not in LLM_PROVIDERS:
+            raise ValueError(f'Unsupported provider. Choose from: {", ".join(LLM_PROVIDERS)}')
+        return v
+
+
+# Per-IP: 10 BYOK requests per hour (no server API cost, but still uses compute)
+_byok_ip_limiter = RateLimiter(max_requests=10, window_seconds=3600)
+
+
+@app.post("/chat/byok", response_model=ChatResponse)
+async def chat_byok(req: BYOKChatRequest, request: Request):
+    client_ip = request.headers.get("x-real-ip", request.client.host if request.client else "unknown")
+
+    if not _byok_ip_limiter.is_allowed(client_ip):
+        raise HTTPException(status_code=429, detail="Too many requests. Try again later.")
+
+    try:
+        researcher = researchers.get_researcher(req.researcher_slug)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Unknown researcher")
+
+    logger.info("byok ip=%s slug=%s provider=%s msg_len=%d",
+                client_ip, req.researcher_slug, req.provider, len(req.message))
+
+    try:
+        s2_data, gh_data, fs_data = await _fetch_all(researcher)
+        qic = compute_researcher_qic(fs_data, gh_data, s2_data)
+        context = build_context(researcher["display_name"], s2_data, gh_data, fs_data, qic)
+        reply = await chat_with_byok(
+            context, req.message, researcher["display_name"],
+            api_key=req.api_key, provider=req.provider, model=req.model,
+        )
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="Request timed out")
+    except Exception as e:
+        error_msg = str(e)
+        if "401" in error_msg or "Unauthorized" in error_msg or "invalid" in error_msg.lower():
+            raise HTTPException(status_code=401, detail="Invalid API key")
+        logger.exception("byok PIPELINE_ERROR ip=%s slug=%s", client_ip, req.researcher_slug)
         raise HTTPException(status_code=502, detail="Pipeline error")
 
     return ChatResponse(reply=reply, researcher_slug=req.researcher_slug)

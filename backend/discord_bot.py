@@ -37,16 +37,27 @@ async def research(interaction: discord.Interaction, query: str, slug: str):
     await interaction.response.defer()
 
     try:
-        # Call the FastAPI backend we built yesterday
         response = requests.post(
-            f"{API_BASE_URL}/chat", 
+            f"{API_BASE_URL}/chat",
             json={"message": query, "researcher_slug": slug},
-            timeout=30
+            timeout=30,
         )
+        if response.status_code == 503:
+            await interaction.followup.send("Daily chat limit reached — try again tomorrow.")
+            return
+        if response.status_code == 429:
+            await interaction.followup.send("Too many requests — please wait a bit and try again.")
+            return
+        if response.status_code == 504:
+            await interaction.followup.send("Request timed out — try a simpler question.")
+            return
+        if response.status_code == 404:
+            await interaction.followup.send(f"Researcher `{slug}` not found. Check the slug and try again.")
+            return
+
         data = response.json()
         reply = data.get("reply", "No response from the brain.")
 
-        # Format as a nice embed
         embed = discord.Embed(title=f"Research Query: {slug}", description=reply, color=0x3498db)
         embed.set_footer(text="Powered by ResearchTwin.net | BGNO Architecture")
         await interaction.followup.send(embed=embed)

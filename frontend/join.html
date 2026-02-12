@@ -242,6 +242,10 @@
                 <h4>Embed your S-Index on your lab website (copy this code)</h4>
                 <textarea class="embed-code" id="embed-code" readonly></textarea>
             </div>
+            <div class="embed-section" style="margin-top:1rem;">
+                <h4>Embed the Chat Widget (visitors bring their own LLM key)</h4>
+                <textarea class="embed-code" id="chat-embed-code" readonly style="height:3.5rem;"></textarea>
+            </div>
         </div>
 
         <!-- Self-host option (collapsed by default) -->
@@ -259,11 +263,11 @@
                     <code>pip install -r backend/requirements.txt</code>
                     <div class="step"><span class="step-num">3.</span> Configure your profile</div>
                     <code>cp node_config.json.example node_config.json && nano node_config.json</code>
-                    <div class="step"><span class="step-num">4.</span> Set your Anthropic API key (for chat)</div>
-                    <code>export ANTHROPIC_API_KEY=sk-ant-...</code>
+                    <div class="step"><span class="step-num">4.</span> Set your Perplexity API key (for chat)</div>
+                    <code>export PERPLEXITY_API_KEY=pplx-...</code>
                     <div class="step"><span class="step-num">5.</span> Launch your node</div>
                     <code>python run_node.py --config node_config.json</code>
-                    <p class="prereqs">Prerequisites: Python 3.10+, Anthropic API key (for chat). All data connectors (Semantic Scholar, GitHub, Figshare) work without keys.</p>
+                    <p class="prereqs">Prerequisites: Python 3.10+, Perplexity API key (for chat). All data connectors (Semantic Scholar, GitHub, Figshare) work without keys.</p>
                 </div>
             </div>
         </div>
@@ -294,6 +298,36 @@
                 </li>
                 <li data-step="3.">
                     <strong>Done!</strong> The widget fetches live data and updates automatically as your research profile grows.
+                </li>
+            </ol>
+        </div>
+
+        <!-- How to embed chat widget section -->
+        <div class="howto" id="howto-chat">
+            <h2>Embed Your Chat Widget</h2>
+            <p class="subtitle">Let visitors chat with your Digital Twin using their own LLM API key (no cost to you).</p>
+
+            <div class="preview-frame" id="chat-preview">
+                <div style="height:260px; display:flex; align-items:center; justify-content:center; color:#556677; font-size:0.82rem;">
+                    Your chat widget preview will appear here after registration
+                </div>
+            </div>
+
+            <ol class="steps">
+                <li data-step="1.">
+                    <strong>Copy the embed code</strong> below<span id="chat-slug-instruction">, replacing <code style="display:inline; background:#131825; padding:0.15rem 0.4rem; border-radius:3px; font-size:0.78rem; color:#e67e22;">YOUR-SLUG</code> with your researcher slug</span>:
+                    <span class="code-block" id="howto-chat-code" onclick="copyCode(this)">&lt;iframe src="https://researchtwin.net/chat-widget.html?slug=YOUR-SLUG" width="400" height="500" style="border:none; border-radius:12px;" loading="lazy"&gt;&lt;/iframe&gt;<span class="copy-hint">click to copy</span></span>
+                </li>
+                <li data-step="2.">
+                    <strong>Paste it into your website.</strong> Visitors choose a provider (Perplexity or OpenAI) and enter their own API key inside the widget. Keys are sent per-request and never stored.
+                    <p class="platform-note">
+                        <strong>Google Sites:</strong> Edit your page &rarr; Insert &rarr; Embed &rarr; "By URL" tab &rarr; paste <code style="display:inline; background:#131825; padding:0.1rem 0.35rem; border-radius:3px; font-size:0.75rem; color:#2ecc71;">https://researchtwin.net/chat-widget.html?slug=YOUR-SLUG</code><br>
+                        <strong>WordPress:</strong> Add a Custom HTML block &rarr; paste the iframe code<br>
+                        <strong>Any HTML page:</strong> Paste the iframe code directly into your HTML
+                    </p>
+                </li>
+                <li data-step="3.">
+                    <strong>Done!</strong> The widget uses the visitor's API key to power conversations about your research. Your data stays on ResearchTwin; only the LLM call uses their key.
                 </li>
             </ol>
         </div>
@@ -375,6 +409,22 @@
             }
             const slugInstr = document.getElementById('slug-instruction');
             if (slugInstr) slugInstr.innerHTML = ` (your slug: <code style="display:inline; background:#131825; padding:0.1rem 0.3rem; border-radius:3px; font-size:0.78rem; color:#2ecc71;">${result.slug}</code>)`;
+
+            // Chat widget embed code
+            const chatCode = document.getElementById('chat-embed-code');
+            if (chatCode) chatCode.value = `<iframe src="https://researchtwin.net/chat-widget.html?slug=${result.slug}" width="400" height="500" style="border:none; border-radius:12px;" loading="lazy"></iframe>`;
+
+            const chatPreview = document.getElementById('chat-preview');
+            if (chatPreview) chatPreview.innerHTML = `<iframe src="/chat-widget.html?slug=${result.slug}" width="100%" height="500" style="border:none;" loading="lazy"></iframe>`;
+
+            const howtoChatCode = document.getElementById('howto-chat-code');
+            if (howtoChatCode) {
+                const hint = howtoChatCode.querySelector('.copy-hint');
+                howtoChatCode.textContent = `<iframe src="https://researchtwin.net/chat-widget.html?slug=${result.slug}" width="400" height="500" style="border:none; border-radius:12px;" loading="lazy"></iframe>`;
+                if (hint) howtoChatCode.appendChild(hint);
+            }
+            const chatSlugInstr = document.getElementById('chat-slug-instruction');
+            if (chatSlugInstr) chatSlugInstr.innerHTML = ` (your slug: <code style="display:inline; background:#131825; padding:0.1rem 0.3rem; border-radius:3px; font-size:0.78rem; color:#2ecc71;">${result.slug}</code>)`;
         }
 
         function copyCode(el) {

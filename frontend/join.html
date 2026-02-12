@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join ResearchTwin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0e17; color: #e0e0e0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+
+        .header { text-align: center; padding: 2rem 1rem 1rem; }
+        .header h1 { font-size: 2.2rem; margin-bottom: 0.3rem; background: linear-gradient(135deg, #3498db, #2ecc71); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .header .tagline { font-size: 0.95rem; color: #8899aa; margin-bottom: 0.5rem; }
+        .back-link { display: inline-block; font-size: 0.8rem; color: #3498db; text-decoration: none; margin-bottom: 1rem; }
+        .back-link:hover { text-decoration: underline; }
+
+        .container { width: 100%; max-width: 580px; padding: 0 1.5rem 3rem; }
+
+        /* Tier selector */
+        .tier-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+        .tier-tab {
+            flex: 1; padding: 0.75rem 0.5rem; border: 1px solid #3498db33; border-radius: 8px;
+            background: transparent; color: #8899aa; cursor: pointer; text-align: center;
+            font-family: inherit; font-size: 0.82rem; transition: all 0.2s; position: relative;
+        }
+        .tier-tab:hover { border-color: #3498db66; color: #e0e0e0; }
+        .tier-tab.active { border-color: #3498db; color: #e0e0e0; background: #131825; }
+        .tier-tab .tier-name { font-weight: 600; display: block; margin-bottom: 0.15rem; }
+        .tier-tab .tier-desc { font-size: 0.7rem; opacity: 0.7; }
+        .badge-soon { position: absolute; top: -6px; right: -6px; background: #e67e22; color: #fff; font-size: 0.55rem; padding: 0.1rem 0.4rem; border-radius: 0.6rem; font-weight: 600; }
+
+        /* Form */
+        .form-section { margin-bottom: 1.5rem; }
+        .form-section h3 { font-size: 0.85rem; color: #8899aa; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #ffffff0a; padding-bottom: 0.4rem; }
+        .field { margin-bottom: 0.75rem; }
+        .field label { display: block; font-size: 0.78rem; color: #8899aa; margin-bottom: 0.25rem; }
+        .field label .req { color: #e74c3c; }
+        .field input {
+            width: 100%; background: #131825; border: 1px solid #3498db33; color: #e0e0e0;
+            border-radius: 6px; padding: 0.55rem 0.75rem; font-size: 0.88rem; font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        .field input:focus { outline: none; border-color: #3498db; }
+        .field input::placeholder { color: #556677; }
+        .field .helper { font-size: 0.68rem; color: #556677; margin-top: 0.2rem; }
+        .field.error input { border-color: #e74c3c; }
+        .field.error .helper { color: #e74c3c; }
+        .honeypot { position: absolute; left: -9999px; opacity: 0; height: 0; }
+
+        .submit-btn {
+            width: 100%; padding: 0.75rem; border: none; border-radius: 8px; font-size: 0.95rem;
+            font-weight: 600; font-family: inherit; cursor: pointer; color: #fff;
+            background: linear-gradient(135deg, #3498db, #2ecc71); transition: opacity 0.2s;
+        }
+        .submit-btn:hover { opacity: 0.9; }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .error-msg { background: #e74c3c22; border: 1px solid #e74c3c44; color: #e74c3c; border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 0.82rem; margin-bottom: 1rem; display: none; }
+
+        /* Tier 1 instructions */
+        .tier1-instructions {
+            background: #131825; border: 1px solid #3498db33; border-radius: 8px; padding: 1.25rem;
+            font-size: 0.85rem; line-height: 1.6;
+        }
+        .tier1-instructions h3 { font-size: 0.9rem; color: #e0e0e0; margin-bottom: 0.75rem; }
+        .tier1-instructions .step { margin-bottom: 0.5rem; }
+        .tier1-instructions .step-num { color: #3498db; font-weight: 600; margin-right: 0.3rem; }
+        .tier1-instructions code {
+            display: block; background: #0a0e17; border: 1px solid #ffffff0a; border-radius: 4px;
+            padding: 0.4rem 0.6rem; font-family: 'SF Mono', Consolas, monospace; font-size: 0.78rem;
+            color: #2ecc71; margin: 0.3rem 0; overflow-x: auto;
+        }
+        .tier1-instructions .prereqs { color: #8899aa; font-size: 0.75rem; margin-top: 0.75rem; border-top: 1px solid #ffffff0a; padding-top: 0.5rem; }
+
+        /* Success screen */
+        .success { display: none; text-align: center; }
+        .success h2 { font-size: 1.4rem; margin-bottom: 0.5rem; background: linear-gradient(135deg, #3498db, #2ecc71); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .success .slug-display {
+            display: inline-block; background: #131825; border: 1px solid #2ecc7144; border-radius: 6px;
+            padding: 0.4rem 1rem; font-family: 'SF Mono', Consolas, monospace; font-size: 1rem;
+            color: #2ecc71; margin: 0.75rem 0;
+        }
+        .success .view-link {
+            display: inline-block; margin-top: 1rem; padding: 0.6rem 1.5rem; border-radius: 8px;
+            background: linear-gradient(135deg, #3498db, #2ecc71); color: #fff; text-decoration: none;
+            font-weight: 600; font-size: 0.9rem; transition: opacity 0.2s;
+        }
+        .success .view-link:hover { opacity: 0.9; }
+        .success .embed-section { margin-top: 1.5rem; text-align: left; }
+        .success .embed-section h4 { font-size: 0.8rem; color: #8899aa; margin-bottom: 0.4rem; }
+        .success .embed-code {
+            width: 100%; background: #0a0e17; border: 1px solid #ffffff0a; border-radius: 6px;
+            padding: 0.6rem; font-family: 'SF Mono', Consolas, monospace; font-size: 0.72rem;
+            color: #2ecc71; resize: none; height: 3.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>ResearchTwin</h1>
+        <p class="tagline">Create your research digital twin in 60 seconds</p>
+        <a href="/" class="back-link">&larr; Back to dashboard</a>
+    </div>
+
+    <div class="container">
+        <!-- Tier selector -->
+        <div class="tier-tabs">
+            <button class="tier-tab" data-tier="1" onclick="selectTier(1)">
+                <span class="tier-name">Tier 1: Local Node</span>
+                <span class="tier-desc">Run your own instance</span>
+            </button>
+            <button class="tier-tab active" data-tier="3" onclick="selectTier(3)">
+                <span class="tier-name">Tier 3: Hosted</span>
+                <span class="tier-desc">Zero setup on researchtwin.net</span>
+            </button>
+            <button class="tier-tab" data-tier="2" onclick="selectTier(2)">
+                <span class="tier-name">Tier 2: Hub</span>
+                <span class="tier-desc">Aggregate researchers</span>
+                <span class="badge-soon">Soon</span>
+            </button>
+        </div>
+
+        <!-- Tier 1: Local Node instructions -->
+        <div id="tier1-content" style="display:none">
+            <div class="tier1-instructions">
+                <h3>Run Your Own ResearchTwin Node</h3>
+                <div class="step"><span class="step-num">1.</span> Clone the repository</div>
+                <code>git clone https://github.com/martinfrasch/researchtwin.git && cd researchtwin</code>
+                <div class="step"><span class="step-num">2.</span> Install dependencies</div>
+                <code>pip install -r backend/requirements.txt</code>
+                <div class="step"><span class="step-num">3.</span> Configure your profile</div>
+                <code>cp node_config.json.example node_config.json && nano node_config.json</code>
+                <div class="step"><span class="step-num">4.</span> Set your Anthropic API key (for chat)</div>
+                <code>export ANTHROPIC_API_KEY=sk-ant-...</code>
+                <div class="step"><span class="step-num">5.</span> Launch your node</div>
+                <code>python run_node.py --config node_config.json</code>
+                <div class="step"><span class="step-num">6.</span> (Optional) Register with the hub for discoverability</div>
+                <code>python run_node.py --config node_config.json --register-hub</code>
+                <p class="prereqs">Prerequisites: Python 3.10+, Anthropic API key (for chat feature). Connector APIs (Semantic Scholar, GitHub, Figshare) work without keys.</p>
+            </div>
+        </div>
+
+        <!-- Tier 3: Registration form -->
+        <div id="tier3-content">
+            <div class="error-msg" id="error-msg"></div>
+
+            <form id="register-form" onsubmit="handleSubmit(event)">
+                <div class="form-section">
+                    <h3>Your Info</h3>
+                    <div class="field">
+                        <label>Full Name <span class="req">*</span></label>
+                        <input type="text" name="name" required minlength="2" maxlength="100" placeholder="Jane Doe">
+                    </div>
+                    <div class="field">
+                        <label>Email <span class="req">*</span></label>
+                        <input type="email" name="email" required maxlength="254" placeholder="jane@university.edu">
+                    </div>
+                    <!-- Honeypot -->
+                    <div class="honeypot" aria-hidden="true">
+                        <label>Website</label>
+                        <input type="text" name="website" tabindex="-1" autocomplete="off">
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Research Identifiers (recommended)</h3>
+                    <p style="font-size:0.75rem; color:#e67e22; margin-bottom:0.75rem; line-height:1.5;">Providing your IDs now gives the best results. The S-Index and data connectors rely on these to fetch your publications, code, and datasets. You can <a href="/update.html" style="color:#3498db;">update them later</a>, but your twin works best with IDs from the start.</p>
+                    <div class="field">
+                        <label>Semantic Scholar ID</label>
+                        <input type="text" name="semantic_scholar_id" maxlength="20" placeholder="e.g. 4019392">
+                        <div class="helper">Find yours at semanticscholar.org/me</div>
+                    </div>
+                    <div class="field">
+                        <label>Google Scholar ID</label>
+                        <input type="text" name="google_scholar_id" maxlength="20" placeholder="e.g. 3lacmuYAAAAJ">
+                        <div class="helper">The string after user= in your Scholar profile URL</div>
+                    </div>
+                    <div class="field">
+                        <label>GitHub Username</label>
+                        <input type="text" name="github_username" maxlength="39" placeholder="e.g. janedoe">
+                    </div>
+                    <div class="field">
+                        <label>Figshare Author Name</label>
+                        <input type="text" name="figshare_search_name" maxlength="100" placeholder="e.g. Jane Doe">
+                        <div class="helper">Used to search for your datasets on Figshare</div>
+                    </div>
+                    <div class="field">
+                        <label>ORCID</label>
+                        <input type="text" name="orcid" maxlength="25" placeholder="e.g. 0000-0003-3159-6321">
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn" id="submit-btn">Create My Digital Twin</button>
+            </form>
+        </div>
+
+        <!-- Tier 2: Coming soon -->
+        <div id="tier2-content" style="display:none">
+            <div class="tier1-instructions">
+                <h3>Hub Federation — Coming Soon</h3>
+                <p style="color:#8899aa; line-height:1.6">
+                    Hubs aggregate multiple researcher nodes into a lab-level discovery endpoint.
+                    Think of it as a department or lab page that federates the digital twins of all its members.
+                </p>
+                <p style="color:#8899aa; line-height:1.6; margin-top:0.75rem">
+                    Want early access? Register as a Hosted researcher (Tier 3) first, then
+                    <a href="mailto:martin@researchtwin.net" style="color:#3498db">contact us</a> about hub setup.
+                </p>
+            </div>
+        </div>
+
+        <!-- Success screen -->
+        <div class="success" id="success">
+            <h2>Your ResearchTwin is Live!</h2>
+            <p style="color:#8899aa; margin-bottom:0.5rem">Your slug:</p>
+            <div class="slug-display" id="slug-display"></div>
+            <br>
+            <a href="/" class="view-link" id="view-link">View Your Digital Twin &rarr;</a>
+            <p style="color:#8899aa; font-size:0.8rem; margin-top:1rem;">Need to add or change your research IDs later? <a href="/update.html" style="color:#3498db;" id="update-link">Update your profile</a></p>
+            <div class="embed-section">
+                <h4>Embed Widget (copy this code)</h4>
+                <textarea class="embed-code" id="embed-code" readonly></textarea>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let selectedTier = 3;
+
+        function selectTier(tier) {
+            selectedTier = tier;
+            document.querySelectorAll('.tier-tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.tier-tab[data-tier="${tier}"]`).classList.add('active');
+
+            document.getElementById('tier1-content').style.display = tier === 1 ? 'block' : 'none';
+            document.getElementById('tier3-content').style.display = tier === 3 ? 'block' : 'none';
+            document.getElementById('tier2-content').style.display = tier === 2 ? 'block' : 'none';
+        }
+
+        async function handleSubmit(e) {
+            e.preventDefault();
+            const form = e.target;
+            const btn = document.getElementById('submit-btn');
+            const errEl = document.getElementById('error-msg');
+
+            errEl.style.display = 'none';
+            btn.disabled = true;
+            btn.textContent = 'Creating...';
+
+            const data = {
+                name: form.name.value.trim(),
+                email: form.email.value.trim(),
+                tier: selectedTier,
+                semantic_scholar_id: form.semantic_scholar_id.value.trim(),
+                google_scholar_id: form.google_scholar_id.value.trim(),
+                github_username: form.github_username.value.trim(),
+                figshare_search_name: form.figshare_search_name.value.trim(),
+                orcid: form.orcid.value.trim(),
+                website: form.website.value,
+            };
+
+            try {
+                const resp = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    throw new Error(err.detail || 'Registration failed');
+                }
+
+                const result = await resp.json();
+                showSuccess(result);
+            } catch (err) {
+                errEl.textContent = err.message;
+                errEl.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = 'Create My Digital Twin';
+            }
+        }
+
+        function showSuccess(result) {
+            document.getElementById('tier3-content').style.display = 'none';
+            document.querySelector('.tier-tabs').style.display = 'none';
+
+            const successEl = document.getElementById('success');
+            successEl.style.display = 'block';
+            document.getElementById('slug-display').textContent = result.slug;
+            document.getElementById('view-link').href = `/?researcher=${result.slug}`;
+            document.getElementById('update-link').href = `/update.html?slug=${result.slug}`;
+            document.getElementById('embed-code').value =
+                `<iframe src="https://researchtwin.net/?researcher=${result.slug}" width="100%" height="600" frameborder="0"></iframe>`;
+        }
+    </script>
+</body>
+</html>

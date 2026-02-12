@@ -7,9 +7,9 @@ services:
     volumes:
       - ./backend/data:/app/data
     environment:
-      - SEMANTIC_SCHOLAR_API_KEY=${SEMANTIC_SCHOLAR_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - GITHUB_TOKEN=${GITHUB_TOKEN}
-      - FIGSHARE_TOKEN=${FIGSHARE_TOKEN}
+      - PYTHONUNBUFFERED=1
     expose:
       - "8000"
     restart: unless-stopped
@@ -30,7 +30,9 @@ services:
         condition: service_healthy
     environment:
       - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - DISCORD_GUILD_ID=${DISCORD_GUILD_ID}
       - API_BASE_URL=http://backend:8000
+      - PYTHONUNBUFFERED=1
     restart: unless-stopped
     networks:
       - researchtwin-network

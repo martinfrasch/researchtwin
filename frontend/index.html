@@ -6,18 +6,622 @@
     <title>ResearchTwin - Federated Research Knowledge</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0e17; color: #e0e0e0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }
-        .container { text-align: center; max-width: 640px; padding: 2rem; }
-        h1 { font-size: 2.5rem; margin-bottom: 0.5rem; background: linear-gradient(135deg, #3498db, #2ecc71); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .tagline { font-size: 1.1rem; color: #8899aa; margin-bottom: 2rem; }
-        .status { display: inline-block; padding: 0.5rem 1.5rem; border: 1px solid #3498db; border-radius: 2rem; color: #3498db; font-size: 0.9rem; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0e17; color: #e0e0e0; min-height: 100vh; overflow-x: hidden; }
+
+        /* Header */
+        .header { text-align: center; padding: 2rem 1rem 1rem; position: relative; z-index: 10; }
+        .header h1 { font-size: 2.2rem; margin-bottom: 0.3rem; background: linear-gradient(135deg, #3498db, #2ecc71); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .header .tagline { font-size: 0.95rem; color: #8899aa; margin-bottom: 0.5rem; }
+        .header-links { display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+        .header-link { display: inline-block; font-size: 0.8rem; border: 1px solid; border-radius: 1rem; padding: 0.3rem 1rem; text-decoration: none; transition: border-color 0.2s, background 0.2s; }
+        .header-link.join { color: #2ecc71; border-color: #2ecc7144; }
+        .header-link.join:hover { border-color: #2ecc71; background: #2ecc7111; }
+        .header-link.update { color: #3498db; border-color: #3498db44; }
+        .header-link.update:hover { border-color: #3498db; background: #3498db11; }
+        .header-link.map { color: #e67e22; border-color: #e67e2244; }
+        .header-link.map:hover { border-color: #e67e22; background: #e67e2211; }
+
+        /* Researcher selector */
+        .researcher-selector { display: flex; justify-content: center; margin-bottom: 0.75rem; }
+        .researcher-selector select {
+            background: #131825; color: #e0e0e0; border: 1px solid #3498db44;
+            border-radius: 6px; padding: 0.4rem 2rem 0.4rem 0.8rem; font-size: 0.85rem;
+            font-family: inherit; cursor: pointer; appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 5l3 3 3-3' stroke='%233498db' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+            background-repeat: no-repeat; background-position: right 0.6rem center;
+            transition: border-color 0.2s;
+        }
+        .researcher-selector select:hover { border-color: #3498db88; }
+        .researcher-selector select:focus { outline: none; border-color: #3498db; }
+
+        /* Metrics bar */
+        .metrics { display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; padding: 0 1rem; margin-bottom: 1rem; }
+        .metric { text-align: center; min-width: 80px; }
+        .metric .value { font-size: 1.6rem; font-weight: 700; background: linear-gradient(135deg, #3498db, #2ecc71); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .metric .label { font-size: 0.7rem; color: #667788; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        /* Canvas */
+        #network-canvas { display: block; width: 100%; cursor: grab; }
+        #network-canvas:active { cursor: grabbing; }
+
+        /* Legend */
+        .legend { display: flex; justify-content: center; gap: 1.5rem; padding: 0.75rem; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: #8899aa; }
+        .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .legend-dot.paper { background: #3498db; }
+        .legend-dot.repo { background: #2ecc71; }
+        .legend-dot.dataset { background: #e67e22; }
+        .legend-dot.researcher { background: #e0e0e0; }
+
+        /* Tooltip */
+        .tooltip { position: fixed; background: #1a1f2e; border: 1px solid #3498db44; border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.8rem; max-width: 320px; pointer-events: none; opacity: 0; transition: opacity 0.15s; z-index: 100; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        .tooltip.visible { opacity: 1; }
+        .tooltip .tt-title { font-weight: 600; color: #e0e0e0; margin-bottom: 0.3rem; }
+        .tooltip .tt-meta { color: #8899aa; font-size: 0.72rem; }
+        .tooltip .tt-score { color: #2ecc71; font-size: 0.72rem; margin-top: 0.2rem; }
+
+        /* Loading */
+        .loading { text-align: center; padding: 4rem; color: #667788; }
+        .loading .spinner { display: inline-block; width: 24px; height: 24px; border: 2px solid #3498db33; border-top-color: #3498db; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 0.5rem; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Source badges */
+        .sources { display: flex; justify-content: center; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+        .source-badge { font-size: 0.65rem; padding: 0.2rem 0.6rem; border-radius: 1rem; border: 1px solid; }
+        .source-badge.ok { border-color: #2ecc7144; color: #2ecc71; }
+        .source-badge.err { border-color: #e74c3c44; color: #e74c3c; }
+
+        /* Footer */
+        .footer { text-align: center; padding: 1.5rem 1rem 2rem; font-size: 0.7rem; color: #556677; border-top: 1px solid #ffffff08; margin-top: 1rem; }
+        .footer a { color: #3498db; text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+        .footer-links { display: flex; justify-content: center; gap: 1.2rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+        .footer-legal { max-width: 600px; margin: 0.5rem auto 0; line-height: 1.5; }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="header">
         <h1>ResearchTwin</h1>
         <p class="tagline">Federated Agentic Web of Research Knowledge</p>
-        <span class="status">Coming Soon</span>
+        <div class="header-links">
+            <a href="/join.html" class="header-link join">Join the Network</a>
+            <a href="/update.html" class="header-link update">Update Profile</a>
+            <a href="/map.html" class="header-link map">Network Map</a>
+        </div>
+        <div class="researcher-selector">
+            <select id="researcher-select" disabled>
+                <option>Loading researchers...</option>
+            </select>
+        </div>
+        <div class="sources" id="sources"></div>
     </div>
+
+    <div class="metrics" id="metrics"></div>
+
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <div>Loading research network...</div>
+    </div>
+
+    <canvas id="network-canvas"></canvas>
+
+    <div class="legend">
+        <div class="legend-item"><div class="legend-dot researcher"></div>Researcher</div>
+        <div class="legend-item"><div class="legend-dot paper"></div>Publications</div>
+        <div class="legend-item"><div class="legend-dot repo"></div>Repositories</div>
+        <div class="legend-item"><div class="legend-dot dataset"></div>Datasets</div>
+    </div>
+
+    <div class="tooltip" id="tooltip">
+        <div class="tt-title"></div>
+        <div class="tt-meta"></div>
+        <div class="tt-score"></div>
+    </div>
+
+    <div class="footer">
+        <div class="footer-links">
+            <a href="https://github.com/martinfrasch/researchtwin" target="_blank">GitHub: ResearchTwin</a>
+            <a href="https://github.com/martinfrasch/s-index" target="_blank">GitHub: S-Index</a>
+            <a href="/privacy.html">Privacy Policy</a>
+            <a href="/join.html">Join</a>
+            <a href="/update.html">Update Profile</a>
+            <a href="/map.html">Network Map</a>
+        </div>
+        <div class="footer-legal">
+            ResearchTwin is open-source software (MIT License). By using this service you agree that: data displayed is sourced from public APIs (Semantic Scholar, Google Scholar, GitHub, Figshare) and may not be complete or current; the S-Index is an experimental metric and should not be used as a sole measure of research quality; we store only the registration data described in our <a href="/privacy.html">privacy policy</a>. No warranty is provided. Contact: <a href="mailto:martin@researchtwin.net">martin@researchtwin.net</a>
+        </div>
+    </div>
+
+    <script>
+    const MAX_DATASET_NODES = 15;
+    const MAX_REPO_NODES = 8;
+
+    const COLORS = {
+        researcher: '#e0e0e0',
+        paper: '#3498db',
+        repo: '#2ecc71',
+        dataset: '#e67e22',
+        cluster: '#8899aa',
+        edge: '#ffffff08',
+        edgeHover: '#3498db44',
+        bg: '#0a0e17',
+    };
+
+    let currentSlug = null;
+    let nodes = [];
+    let edges = [];
+    let canvas, ctx, W, H;
+    let hoveredNode = null;
+    let dragNode = null;
+    let mouse = { x: 0, y: 0 };
+    let animId;
+    let canvasReady = false;
+
+    // --- Researcher selector ---
+
+    function getSlugFromURL() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('researcher') || null;
+    }
+
+    function setSlugInURL(slug) {
+        const url = new URL(window.location);
+        url.searchParams.set('researcher', slug);
+        history.replaceState(null, '', url);
+    }
+
+    async function loadResearcherList() {
+        const select = document.getElementById('researcher-select');
+        try {
+            const resp = await fetch('/api/researchers');
+            if (!resp.ok) throw new Error(`${resp.status}`);
+            const data = await resp.json();
+            const list = data.researchers || [];
+            if (list.length === 0) throw new Error('No researchers configured');
+
+            select.innerHTML = list.map(r =>
+                `<option value="${r.slug}">${r.display_name}</option>`
+            ).join('');
+            select.disabled = false;
+
+            // Pick slug from URL or default to first
+            const urlSlug = getSlugFromURL();
+            const validSlug = list.find(r => r.slug === urlSlug) ? urlSlug : list[0].slug;
+            select.value = validSlug;
+            setSlugInURL(validSlug);
+            currentSlug = validSlug;
+
+            select.addEventListener('change', () => {
+                const newSlug = select.value;
+                if (newSlug !== currentSlug) {
+                    currentSlug = newSlug;
+                    setSlugInURL(newSlug);
+                    loadResearcher(newSlug);
+                }
+            });
+
+            loadResearcher(validSlug);
+        } catch (e) {
+            select.innerHTML = `<option>Error loading researchers</option>`;
+            document.getElementById('loading').innerHTML =
+                `<div style="color:#e74c3c">Failed to load researcher list: ${e.message}</div>`;
+        }
+    }
+
+    async function loadResearcher(slug) {
+        // Reset state
+        nodes = [];
+        edges = [];
+        hoveredNode = null;
+        dragNode = null;
+        if (animId) cancelAnimationFrame(animId);
+
+        document.getElementById('loading').style.display = '';
+        document.getElementById('loading').innerHTML =
+            '<div class="spinner"></div><div>Loading research network...</div>';
+        document.getElementById('metrics').innerHTML = '';
+        document.getElementById('sources').innerHTML = '';
+
+        try {
+            const resp = await fetch(`/api/context/${slug}`);
+            if (!resp.ok) throw new Error(`API returned ${resp.status}`);
+            const data = await resp.json();
+            buildGraph(data);
+            renderMetrics(data);
+            renderSources(data.sources);
+            document.getElementById('loading').style.display = 'none';
+            if (!canvasReady) {
+                setupCanvas();
+                canvasReady = true;
+            } else {
+                resize();
+            }
+            animate();
+        } catch (e) {
+            document.getElementById('loading').innerHTML =
+                `<div style="color:#e74c3c">Failed to load: ${e.message}</div>
+                 <div style="margin-top:0.5rem;color:#667788;font-size:0.8rem">Retrying in 5s...</div>`;
+            setTimeout(() => loadResearcher(slug), 5000);
+        }
+    }
+
+    // --- Rendering ---
+
+    function renderMetrics(data) {
+        const s = data.summary || {};
+        const items = [
+            { value: data.s_index?.toFixed(1) || '0', label: 'S-Index' },
+            { value: s.total_papers || 0, label: 'Papers' },
+            { value: (s.total_citations || 0).toLocaleString(), label: 'Citations' },
+            { value: s.h_index || 0, label: 'h-Index' },
+            { value: s.i10_index || 0, label: 'i10-Index' },
+            { value: (data.sources?.github?.total_repos || 0), label: 'Repos' },
+            { value: (data.sources?.figshare?.total_datasets || 0), label: 'Datasets' },
+        ];
+        document.getElementById('metrics').innerHTML = items.map(m =>
+            `<div class="metric"><div class="value">${m.value}</div><div class="label">${m.label}</div></div>`
+        ).join('');
+    }
+
+    function renderSources(sources) {
+        const el = document.getElementById('sources');
+        el.innerHTML = Object.entries(sources).map(([name, info]) => {
+            const ok = info.status === 'connected';
+            const label = name.replace('_', ' ');
+            return `<span class="source-badge ${ok ? 'ok' : 'err'}">${ok ? '\u2713' : '\u2717'} ${label}</span>`;
+        }).join('');
+    }
+
+    // --- Graph building ---
+
+    function buildGraph(data) {
+        nodes = [];
+        edges = [];
+
+        // Central researcher node
+        const center = {
+            id: 'researcher',
+            type: 'researcher',
+            label: data.display_name || currentSlug,
+            x: 0, y: 0, vx: 0, vy: 0,
+            radius: 22,
+            meta: `S-Index: ${data.s_index?.toFixed(1)} | h-index: ${data.summary?.h_index}`,
+            score: `${data.summary?.total_papers} papers, ${data.summary?.total_citations?.toLocaleString()} citations`,
+            fixed: true,
+        };
+        nodes.push(center);
+
+        // Paper cluster node
+        const ss = data.sources?.semantic_scholar || {};
+        if (ss.paper_count > 0) {
+            const paperCluster = {
+                id: 'papers-cluster',
+                type: 'paper',
+                label: `${ss.paper_count} Publications`,
+                x: -180, y: -80, vx: 0, vy: 0,
+                radius: 16,
+                meta: `${ss.citation_count?.toLocaleString()} total citations | h-index: ${ss.h_index}`,
+                score: `Impact factor: ${data.paper_impact?.toFixed(2)}`,
+            };
+            nodes.push(paperCluster);
+            edges.push({ source: 'researcher', target: 'papers-cluster', weight: 3 });
+        }
+
+        // Repo nodes — limited to top MAX_REPO_NODES by score
+        const allRepos = (data.repo_scores || []).slice();
+        allRepos.sort((a, b) => b.score - a.score);
+        const displayRepos = allRepos.slice(0, MAX_REPO_NODES);
+        const extraRepos = allRepos.length - displayRepos.length;
+
+        displayRepos.forEach((repo, i) => {
+            const angle = -Math.PI/2 + (i / Math.max(displayRepos.length, 1)) * Math.PI;
+            const r = 250 + Math.random() * 60;
+            const node = {
+                id: `repo-${i}`,
+                type: 'repo',
+                label: repo.title,
+                x: Math.cos(angle) * r,
+                y: Math.sin(angle) * r + 40,
+                vx: 0, vy: 0,
+                radius: 7 + Math.min(repo.score / 3, 8),
+                meta: `Q: ${repo.quality?.Q?.toFixed(1)} | Impact: ${repo.impact} | Collab: ${repo.collaboration}`,
+                score: `QIC Score: ${repo.score}`,
+            };
+            nodes.push(node);
+            edges.push({ source: 'researcher', target: node.id, weight: 1 });
+            if (ss.paper_count > 0) {
+                edges.push({ source: 'papers-cluster', target: node.id, weight: 0.3 });
+            }
+        });
+
+        if (extraRepos > 0) {
+            const clusterNode = {
+                id: 'repos-overflow',
+                type: 'cluster',
+                label: `+${extraRepos} more repos`,
+                x: 220, y: -120, vx: 0, vy: 0,
+                radius: 10,
+                meta: `${extraRepos} additional repositories not shown`,
+                score: '',
+            };
+            nodes.push(clusterNode);
+            edges.push({ source: 'researcher', target: 'repos-overflow', weight: 0.5 });
+        }
+
+        // Dataset nodes — limited to top MAX_DATASET_NODES by score
+        const allDatasets = (data.dataset_scores || []).slice();
+        allDatasets.sort((a, b) => b.score - a.score);
+        const displayDatasets = allDatasets.slice(0, MAX_DATASET_NODES);
+        const extraDatasets = allDatasets.length - displayDatasets.length;
+
+        displayDatasets.forEach((ds, i) => {
+            const angle = Math.PI/2 + (i / Math.max(displayDatasets.length, 1)) * Math.PI;
+            const r = 260 + Math.random() * 60;
+            const node = {
+                id: `dataset-${i}`,
+                type: 'dataset',
+                label: ds.title.length > 50 ? ds.title.slice(0, 47) + '...' : ds.title,
+                fullTitle: ds.title,
+                x: Math.cos(angle) * r,
+                y: Math.sin(angle) * r + 40,
+                vx: 0, vy: 0,
+                radius: 9 + Math.min(ds.score / 3, 8),
+                meta: `Q: ${ds.quality?.Q?.toFixed(1)} | Impact: ${ds.impact} | Collab: ${ds.collaboration}`,
+                score: `QIC Score: ${ds.score}`,
+            };
+            nodes.push(node);
+            edges.push({ source: 'researcher', target: node.id, weight: 2 });
+            if (ss.paper_count > 0) {
+                edges.push({ source: 'papers-cluster', target: node.id, weight: 0.5 });
+            }
+        });
+
+        if (extraDatasets > 0) {
+            const clusterNode = {
+                id: 'datasets-overflow',
+                type: 'cluster',
+                label: `+${extraDatasets} more datasets`,
+                x: -220, y: 130, vx: 0, vy: 0,
+                radius: 12,
+                meta: `${extraDatasets} additional datasets not shown`,
+                score: '',
+            };
+            nodes.push(clusterNode);
+            edges.push({ source: 'researcher', target: 'datasets-overflow', weight: 0.5 });
+        }
+    }
+
+    // --- Canvas + Force simulation ---
+
+    function setupCanvas() {
+        canvas = document.getElementById('network-canvas');
+        ctx = canvas.getContext('2d');
+        resize();
+        window.addEventListener('resize', resize);
+        canvas.addEventListener('mousemove', onMouseMove);
+        canvas.addEventListener('mousedown', onMouseDown);
+        canvas.addEventListener('mouseup', onMouseUp);
+        canvas.addEventListener('mouseleave', onMouseLeave);
+        canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+        canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+        canvas.addEventListener('touchend', onMouseUp);
+    }
+
+    function resize() {
+        W = window.innerWidth;
+        H = Math.max(window.innerHeight - 280, 400);
+        canvas.width = W * devicePixelRatio;
+        canvas.height = H * devicePixelRatio;
+        canvas.style.width = W + 'px';
+        canvas.style.height = H + 'px';
+        ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        const c = nodes.find(n => n.id === 'researcher');
+        if (c) { c.x = 0; c.y = 0; }
+    }
+
+    // Build a node lookup map for fast edge resolution
+    let nodeMap = {};
+    function rebuildNodeMap() {
+        nodeMap = {};
+        for (const n of nodes) nodeMap[n.id] = n;
+    }
+
+    function simulate() {
+        rebuildNodeMap();
+
+        // Repulsion between all nodes
+        for (let i = 0; i < nodes.length; i++) {
+            for (let j = i + 1; j < nodes.length; j++) {
+                const a = nodes[i], b = nodes[j];
+                let dx = a.x - b.x, dy = a.y - b.y;
+                let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+                let force = 2000 / (dist * dist);
+                force = Math.min(force, 3);
+                let fx = dx / dist * force, fy = dy / dist * force;
+                if (!a.fixed) { a.vx += fx; a.vy += fy; }
+                if (!b.fixed) { b.vx -= fx; b.vy -= fy; }
+            }
+        }
+
+        // Attraction along edges
+        for (const e of edges) {
+            const a = nodeMap[e.source];
+            const b = nodeMap[e.target];
+            if (!a || !b) continue;
+            let dx = b.x - a.x, dy = b.y - a.y;
+            let dist = Math.sqrt(dx*dx + dy*dy) || 1;
+            let force = (dist - 220) * 0.003 * (e.weight || 1);
+            let fx = dx / dist * force, fy = dy / dist * force;
+            if (!a.fixed) { a.vx += fx; a.vy += fy; }
+            if (!b.fixed) { b.vx -= fx; b.vy -= fy; }
+        }
+
+        // Center gravity
+        for (const n of nodes) {
+            if (n.fixed) continue;
+            n.vx -= n.x * 0.0005;
+            n.vy -= n.y * 0.0005;
+        }
+
+        // Update positions with damping
+        for (const n of nodes) {
+            if (n.fixed || n === dragNode) continue;
+            n.vx *= 0.88;
+            n.vy *= 0.88;
+            n.x += n.vx;
+            n.y += n.vy;
+        }
+    }
+
+    function draw() {
+        const cx = W / 2, cy = H / 2;
+        ctx.clearRect(0, 0, W, H);
+
+        // Draw edges
+        for (const e of edges) {
+            const a = nodeMap[e.source];
+            const b = nodeMap[e.target];
+            if (!a || !b) continue;
+            const isHover = hoveredNode && (hoveredNode.id === a.id || hoveredNode.id === b.id);
+            ctx.beginPath();
+            ctx.moveTo(cx + a.x, cy + a.y);
+            ctx.lineTo(cx + b.x, cy + b.y);
+            ctx.strokeStyle = isHover ? COLORS.edgeHover : COLORS.edge;
+            ctx.lineWidth = isHover ? 1.5 : 0.3;
+            ctx.stroke();
+        }
+
+        // Draw nodes
+        for (const n of nodes) {
+            const sx = cx + n.x, sy = cy + n.y;
+            const color = COLORS[n.type] || COLORS.cluster;
+            const isHover = hoveredNode === n;
+
+            // Glow
+            if (isHover || n.type === 'researcher') {
+                const grad = ctx.createRadialGradient(sx, sy, n.radius, sx, sy, n.radius * 3);
+                grad.addColorStop(0, color + '30');
+                grad.addColorStop(1, color + '00');
+                ctx.beginPath();
+                ctx.arc(sx, sy, n.radius * 3, 0, Math.PI * 2);
+                ctx.fillStyle = grad;
+                ctx.fill();
+            }
+
+            // Node circle
+            ctx.beginPath();
+            ctx.arc(sx, sy, n.radius, 0, Math.PI * 2);
+            if (n.type === 'cluster') {
+                ctx.strokeStyle = color + '88';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([3, 3]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.fillStyle = color + '22';
+            } else {
+                ctx.fillStyle = isHover ? color : color + 'cc';
+            }
+            ctx.fill();
+
+            // Label: researcher always, others only if hovered or large enough
+            const showLabel = n.type === 'researcher' || n.type === 'cluster' || isHover || n.radius > 12;
+            if (showLabel) {
+                const fontSize = n.type === 'researcher' ? 13 : 9;
+                ctx.font = `${isHover ? 'bold ' : ''}${fontSize}px -apple-system, sans-serif`;
+                ctx.fillStyle = '#e0e0e0';
+                ctx.textAlign = 'center';
+                ctx.fillText(n.label, sx, sy + n.radius + 14);
+            }
+        }
+    }
+
+    function animate() {
+        simulate();
+        draw();
+        animId = requestAnimationFrame(animate);
+    }
+
+    // --- Interaction ---
+
+    function getNodeAt(mx, my) {
+        const cx = W / 2, cy = H / 2;
+        for (let i = nodes.length - 1; i >= 0; i--) {
+            const n = nodes[i];
+            const dx = (cx + n.x) - mx, dy = (cy + n.y) - my;
+            if (dx*dx + dy*dy < (n.radius + 6) * (n.radius + 6)) return n;
+        }
+        return null;
+    }
+
+    function onMouseMove(e) {
+        mouse.x = e.offsetX;
+        mouse.y = e.offsetY;
+        if (dragNode) {
+            dragNode.x = mouse.x - W/2;
+            dragNode.y = mouse.y - H/2;
+            dragNode.vx = 0;
+            dragNode.vy = 0;
+            return;
+        }
+        const n = getNodeAt(mouse.x, mouse.y);
+        hoveredNode = n;
+        canvas.style.cursor = n ? 'pointer' : 'grab';
+        const tt = document.getElementById('tooltip');
+        if (n) {
+            tt.querySelector('.tt-title').textContent = n.fullTitle || n.label;
+            tt.querySelector('.tt-meta').textContent = n.meta || '';
+            tt.querySelector('.tt-score').textContent = n.score || '';
+            tt.classList.add('visible');
+            let tx = e.clientX + 16, ty = e.clientY + 16;
+            if (tx + 320 > window.innerWidth) tx = e.clientX - 330;
+            if (ty + 100 > window.innerHeight) ty = e.clientY - 110;
+            tt.style.left = tx + 'px';
+            tt.style.top = ty + 'px';
+        } else {
+            tt.classList.remove('visible');
+        }
+    }
+
+    function onMouseDown(e) {
+        const n = getNodeAt(e.offsetX, e.offsetY);
+        if (n && !n.fixed) {
+            dragNode = n;
+            canvas.style.cursor = 'grabbing';
+        }
+    }
+
+    function onMouseUp() {
+        dragNode = null;
+    }
+
+    function onMouseLeave() {
+        hoveredNode = null;
+        dragNode = null;
+        document.getElementById('tooltip').classList.remove('visible');
+    }
+
+    function onTouchStart(e) {
+        e.preventDefault();
+        const t = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        const x = t.clientX - rect.left, y = t.clientY - rect.top;
+        const n = getNodeAt(x, y);
+        if (n && !n.fixed) dragNode = n;
+    }
+
+    function onTouchMove(e) {
+        e.preventDefault();
+        if (!dragNode) return;
+        const t = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        dragNode.x = t.clientX - rect.left - W/2;
+        dragNode.y = t.clientY - rect.top - H/2;
+        dragNode.vx = 0;
+        dragNode.vy = 0;
+    }
+
+    // --- Start ---
+    loadResearcherList();
+    </script>
 </body>
 </html>

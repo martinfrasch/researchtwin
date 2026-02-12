@@ -1,0 +1,30 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.martinfrasch/researchtwin",
+  "title": "ResearchTwin",
+  "description": "Federated research discovery with S-Index metrics across a network of digital twins.",
+  "repository": {
+    "url": "https://github.com/martinfrasch/researchtwin",
+    "source": "github"
+  },
+  "version": "0.1.1",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "registryBaseUrl": "https://pypi.org",
+      "identifier": "mcp-server-researchtwin",
+      "version": "0.1.1",
+      "runtimeHint": "uvx",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "RESEARCHTWIN_URL",
+          "description": "Base URL for ResearchTwin API (default: https://researchtwin.net)",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

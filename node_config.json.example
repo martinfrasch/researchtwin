@@ -1,0 +1,13 @@
+{
+  "display_name": "Jane Doe",
+  "email": "jane@university.edu",
+  "semantic_scholar_id": "",
+  "google_scholar_id": "",
+  "github_username": "janedoe",
+  "figshare_search_name": "Jane Doe",
+  "orcid": "",
+  "tier": 1,
+  "port": 8000,
+  "register_with_hub": false,
+  "hub_url": "https://researchtwin.net"
+}

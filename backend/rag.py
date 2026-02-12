@@ -1,0 +1,110 @@
+"""RAG pipeline: build context from research data and query Claude."""
+
+import os
+
+import anthropic
+
+
+ANTHROPIC_MODEL = "claude-sonnet-4-5-20250929"
+
+
+def build_context(
+    researcher_name: str,
+    semantic_scholar: dict,
+    github: dict,
+    figshare: dict,
+    qic: dict,
+) -> str:
+    """Assemble all data into a structured text context for the LLM."""
+    sections = []
+
+    # Header
+    sections.append(f"# Research Profile: {researcher_name}\n")
+
+    # QIC-Index Summary
+    sections.append(f"## QIC-Index (Quality × Impact × Collaboration)")
+    sections.append(f"Total S-Index: {qic.get('s_index', 0)}")
+    summary = qic.get("summary", {})
+    sections.append(
+        f"Papers: {summary.get('total_papers', 0)} | Citations: {summary.get('total_citations', 0)} | "
+        f"h-index: {summary.get('h_index', 0)} | i10-index: {summary.get('i10_index', 0)}"
+    )
+    sections.append(f"Datasets scored: {summary.get('total_datasets', 0)} | Repos scored: {summary.get('total_repos_scored', 0)}")
+    sections.append("")
+
+    # Publications (merged from Semantic Scholar + Google Scholar)
+    sections.append("## Top Publications (by citations)")
+    for p in semantic_scholar.get("top_papers", [])[:10]:
+        source_tag = " [GS]" if p.get("source") == "google_scholar" else ""
+        sections.append(f"- {p['title']} ({p.get('year', '?')}) — {p.get('citations', 0)} citations{source_tag}")
+    sections.append("")
+
+    # GitHub
+    sections.append(f"## GitHub Repositories ({github.get('total_repos', 0)} repos, {github.get('total_stars', 0)} total stars)")
+    langs = github.get("languages", {})
+    if langs:
+        top_langs = sorted(langs.items(), key=lambda x: x[1], reverse=True)[:5]
+        sections.append(f"Languages: {', '.join(f'{l} ({c})' for l, c in top_langs)}")
+    for repo in github.get("top_repos", [])[:8]:
+        desc = f" — {repo['description']}" if repo.get("description") else ""
+        sections.append(f"- {repo['name']} ({repo.get('language', 'N/A')}, {repo.get('stars', 0)}★){desc}")
+    sections.append("")
+
+    # Figshare datasets
+    sections.append(f"## Datasets (Figshare)")
+    for article in figshare.get("articles", []):
+        sections.append(f"- {article['title']}")
+        if article.get("doi"):
+            sections.append(f"  DOI: {article['doi']}")
+        sections.append(f"  Views: {article.get('views', 0)} | Downloads: {article.get('downloads', 0)}")
+        if article.get("description"):
+            desc = article["description"][:200]
+            sections.append(f"  {desc}")
+    sections.append("")
+
+    # QIC per-object scores
+    if qic.get("dataset_scores"):
+        sections.append("## QIC Scores — Datasets")
+        for ds in qic["dataset_scores"]:
+            q = ds["quality"]
+            sections.append(f"- {ds['title']}: score={ds['score']} (Q={q['Q']:.1f}, I={ds['impact']}, C={ds['collaboration']})")
+    if qic.get("repo_scores"):
+        sections.append("## QIC Scores — Repositories")
+        for rs in qic["repo_scores"][:5]:
+            q = rs["quality"]
+            sections.append(f"- {rs['title']}: score={rs['score']} (Q={q['Q']:.1f}, I={rs['impact']}, C={rs['collaboration']})")
+
+    return "\n".join(sections)
+
+
+async def chat_with_context(context: str, user_message: str, researcher_name: str) -> str:
+    """Send context + user query to Claude and return the response."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return "ResearchTwin backend is not configured with an API key. Please set ANTHROPIC_API_KEY."
+
+    client = anthropic.AsyncAnthropic(api_key=api_key)
+
+    system_prompt = (
+        f"You are ResearchTwin, a digital twin representing researcher {researcher_name}. "
+        "You answer questions about their research, publications, code, datasets, and impact metrics. "
+        "Use the provided context to give accurate, specific answers. "
+        "Cite specific papers, repositories, or datasets when relevant. "
+        "If asked about the QIC-Index or S-Index, explain it as a Quality × Impact × Collaboration metric "
+        "for measuring the utility of shared research data (following FAIR principles). "
+        "Be concise but informative. If information is not in the context, say so honestly."
+    )
+
+    message = await client.messages.create(
+        model=ANTHROPIC_MODEL,
+        max_tokens=1024,
+        system=system_prompt,
+        messages=[
+            {
+                "role": "user",
+                "content": f"<research_context>\n{context}\n</research_context>\n\nQuestion: {user_message}",
+            }
+        ],
+    )
+
+    return message.content[0].text

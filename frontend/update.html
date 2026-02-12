@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Update Profile — ResearchTwin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0e17; color: #e0e0e0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+
+        .header { text-align: center; padding: 2rem 1rem 1rem; }
+        .header h1 { font-size: 2.2rem; margin-bottom: 0.3rem; background: linear-gradient(135deg, #3498db, #2ecc71); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .header .tagline { font-size: 0.95rem; color: #8899aa; margin-bottom: 0.5rem; }
+        .back-link { display: inline-block; font-size: 0.8rem; color: #3498db; text-decoration: none; margin-bottom: 1rem; }
+        .back-link:hover { text-decoration: underline; }
+
+        .container { width: 100%; max-width: 520px; padding: 0 1.5rem 3rem; }
+
+        .form-section { margin-bottom: 1.5rem; }
+        .form-section h3 { font-size: 0.85rem; color: #8899aa; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #ffffff0a; padding-bottom: 0.4rem; }
+        .field { margin-bottom: 0.75rem; }
+        .field label { display: block; font-size: 0.78rem; color: #8899aa; margin-bottom: 0.25rem; }
+        .field label .req { color: #e74c3c; }
+        .field input {
+            width: 100%; background: #131825; border: 1px solid #3498db33; color: #e0e0e0;
+            border-radius: 6px; padding: 0.55rem 0.75rem; font-size: 0.88rem; font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        .field input:focus { outline: none; border-color: #3498db; }
+        .field input::placeholder { color: #556677; }
+        .field .helper { font-size: 0.68rem; color: #556677; margin-top: 0.2rem; }
+        .field.error input { border-color: #e74c3c; }
+        .field.error .helper { color: #e74c3c; }
+
+        .submit-btn {
+            width: 100%; padding: 0.75rem; border: none; border-radius: 8px; font-size: 0.95rem;
+            font-weight: 600; font-family: inherit; cursor: pointer; color: #fff;
+            background: linear-gradient(135deg, #3498db, #2ecc71); transition: opacity 0.2s;
+        }
+        .submit-btn:hover { opacity: 0.9; }
+        .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .error-msg { background: #e74c3c22; border: 1px solid #e74c3c44; color: #e74c3c; border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 0.82rem; margin-bottom: 1rem; display: none; }
+        .success-msg { background: #2ecc7122; border: 1px solid #2ecc7144; color: #2ecc71; border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 0.82rem; margin-bottom: 1rem; display: none; }
+
+        .info-box {
+            background: #131825; border: 1px solid #3498db33; border-radius: 8px; padding: 1rem;
+            font-size: 0.82rem; color: #8899aa; line-height: 1.6; margin-bottom: 1.5rem;
+        }
+
+        .code-input {
+            text-align: center; font-size: 1.5rem; letter-spacing: 0.5rem; font-family: 'SF Mono', Consolas, monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Update Profile</h1>
+        <p class="tagline">Update your research identifiers</p>
+        <a href="/" class="back-link">&larr; Back to dashboard</a>
+    </div>
+
+    <div class="container">
+        <div class="info-box">
+            To update your profile, enter your slug and the email you registered with.
+            We'll send a 6-digit verification code to your email. Use it to authorize changes.
+        </div>
+
+        <div class="error-msg" id="error-msg"></div>
+        <div class="success-msg" id="success-msg"></div>
+
+        <!-- Step 1: Request code -->
+        <div id="step-request">
+            <form onsubmit="requestCode(event)">
+                <div class="form-section">
+                    <h3>Step 1: Verify Identity</h3>
+                    <div class="field">
+                        <label>Your Slug <span class="req">*</span></label>
+                        <input type="text" id="req-slug" required minlength="2" maxlength="128" placeholder="e.g. jane-doe">
+                        <div class="helper">The slug shown on your profile page</div>
+                    </div>
+                    <div class="field">
+                        <label>Registered Email <span class="req">*</span></label>
+                        <input type="email" id="req-email" required maxlength="254" placeholder="jane@university.edu">
+                    </div>
+                </div>
+                <button type="submit" class="submit-btn" id="req-btn">Send Verification Code</button>
+            </form>
+        </div>
+
+        <!-- Step 2: Enter code + update fields -->
+        <div id="step-update" style="display:none">
+            <form onsubmit="submitUpdate(event)">
+                <div class="form-section">
+                    <h3>Step 2: Enter Code &amp; Update</h3>
+                    <div class="field">
+                        <label>Verification Code <span class="req">*</span></label>
+                        <input type="text" id="upd-code" class="code-input" required minlength="6" maxlength="6" placeholder="000000" inputmode="numeric" pattern="\d{6}">
+                        <div class="helper">Check your email for the 6-digit code</div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Update Research Identifiers</h3>
+                    <p style="font-size:0.75rem; color:#556677; margin-bottom:0.75rem;">Only fill in fields you want to change. Empty fields will keep their current values.</p>
+                    <div class="field">
+                        <label>Semantic Scholar ID</label>
+                        <input type="text" id="upd-ss" maxlength="20" placeholder="e.g. 4019392">
+                        <div class="helper">Find yours at semanticscholar.org/me</div>
+                    </div>
+                    <div class="field">
+                        <label>Google Scholar ID</label>
+                        <input type="text" id="upd-gs" maxlength="20" placeholder="e.g. 3lacmuYAAAAJ">
+                        <div class="helper">The string after user= in your Scholar profile URL</div>
+                    </div>
+                    <div class="field">
+                        <label>GitHub Username</label>
+                        <input type="text" id="upd-gh" maxlength="39" placeholder="e.g. janedoe">
+                    </div>
+                    <div class="field">
+                        <label>Figshare Author Name</label>
+                        <input type="text" id="upd-fs" maxlength="100" placeholder="e.g. Jane Doe">
+                    </div>
+                    <div class="field">
+                        <label>ORCID</label>
+                        <input type="text" id="upd-orcid" maxlength="25" placeholder="e.g. 0000-0003-3159-6321">
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-btn" id="upd-btn">Update Profile</button>
+            </form>
+        </div>
+
+        <!-- Step 3: Success -->
+        <div id="step-done" style="display:none; text-align:center;">
+            <h2 style="font-size:1.4rem; margin-bottom:0.5rem; background:linear-gradient(135deg,#3498db,#2ecc71); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">Profile Updated</h2>
+            <p style="color:#8899aa; margin-bottom:1rem;" id="done-msg"></p>
+            <a href="/" style="display:inline-block; padding:0.6rem 1.5rem; border-radius:8px; background:linear-gradient(135deg,#3498db,#2ecc71); color:#fff; text-decoration:none; font-weight:600; font-size:0.9rem;" id="done-link">View Your Digital Twin &rarr;</a>
+        </div>
+    </div>
+
+    <script>
+        let currentSlug = '';
+
+        function showError(msg) {
+            const el = document.getElementById('error-msg');
+            el.textContent = msg;
+            el.style.display = 'block';
+            document.getElementById('success-msg').style.display = 'none';
+        }
+        function showSuccess(msg) {
+            const el = document.getElementById('success-msg');
+            el.textContent = msg;
+            el.style.display = 'block';
+            document.getElementById('error-msg').style.display = 'none';
+        }
+        function hideMessages() {
+            document.getElementById('error-msg').style.display = 'none';
+            document.getElementById('success-msg').style.display = 'none';
+        }
+
+        async function requestCode(e) {
+            e.preventDefault();
+            hideMessages();
+            const btn = document.getElementById('req-btn');
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+
+            currentSlug = document.getElementById('req-slug').value.trim().toLowerCase();
+            const email = document.getElementById('req-email').value.trim();
+
+            try {
+                const resp = await fetch('/api/request-update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ slug: currentSlug, email }),
+                });
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    throw new Error(err.detail || 'Failed to send code');
+                }
+
+                showSuccess('Verification code sent! Check your email.');
+                document.getElementById('step-request').style.display = 'none';
+                document.getElementById('step-update').style.display = 'block';
+            } catch (err) {
+                showError(err.message);
+                btn.disabled = false;
+                btn.textContent = 'Send Verification Code';
+            }
+        }
+
+        async function submitUpdate(e) {
+            e.preventDefault();
+            hideMessages();
+            const btn = document.getElementById('upd-btn');
+            btn.disabled = true;
+            btn.textContent = 'Updating...';
+
+            const data = {
+                slug: currentSlug,
+                code: document.getElementById('upd-code').value.trim(),
+                semantic_scholar_id: document.getElementById('upd-ss').value.trim(),
+                google_scholar_id: document.getElementById('upd-gs').value.trim(),
+                github_username: document.getElementById('upd-gh').value.trim(),
+                figshare_search_name: document.getElementById('upd-fs').value.trim(),
+                orcid: document.getElementById('upd-orcid').value.trim(),
+            };
+
+            try {
+                const resp = await fetch(`/api/researcher/${currentSlug}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    throw new Error(err.detail || 'Update failed');
+                }
+
+                const result = await resp.json();
+                document.getElementById('step-update').style.display = 'none';
+                document.getElementById('step-done').style.display = 'block';
+                document.getElementById('done-msg').textContent = result.message;
+                document.getElementById('done-link').href = `/?researcher=${currentSlug}`;
+            } catch (err) {
+                showError(err.message);
+                btn.disabled = false;
+                btn.textContent = 'Update Profile';
+            }
+        }
+
+        // Pre-fill slug from URL parameter
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('slug')) {
+            document.getElementById('req-slug').value = params.get('slug');
+        }
+    </script>
+</body>
+</html>

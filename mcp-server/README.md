@@ -1,3 +1,5 @@
+<!-- mcp-name: io.github.martinfrasch/researchtwin -->
+
 # mcp-server-researchtwin
 
 MCP server for **ResearchTwin** — inter-agentic research discovery across a federated network of researcher digital twins.

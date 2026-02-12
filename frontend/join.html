@@ -226,6 +226,24 @@
                     </div>
                 </div>
 
+                <div class="form-section">
+                    <h3>Fund Your Chat Widget <span style="color:#718096; font-weight:400;">(Optional)</span></h3>
+                    <p class="ids-note">Provide your own LLM API key so visitors can chat with your digital twin at no cost to them. Your key is stored securely and never exposed to visitors. Without this, visitors get 5 free queries/day or can use their own key.</p>
+                    <div class="field">
+                        <label>LLM Provider</label>
+                        <select name="llm_provider" style="width:100%; background:#131825; border:1px solid #3498db33; color:#e0e0e0; border-radius:6px; padding:0.55rem 0.75rem; font-size:0.88rem;">
+                            <option value="">None (visitors use free tier or their own key)</option>
+                            <option value="perplexity">Perplexity (sonar)</option>
+                            <option value="openai">OpenAI (gpt-4o-mini)</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>API Key</label>
+                        <input type="password" name="llm_api_key" maxlength="256" placeholder="Leave blank to skip">
+                        <div class="helper">Get a key from <a href="https://www.perplexity.ai/settings/api" target="_blank">Perplexity</a> or <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI</a>. Stored securely, never shared with visitors.</div>
+                    </div>
+                </div>
+
                 <button type="submit" class="submit-btn" id="submit-btn">Create My Digital Twin</button>
             </form>
         </div>
@@ -360,6 +378,8 @@
                 github_username: form.github_username.value.trim(),
                 figshare_search_name: form.figshare_search_name.value.trim(),
                 orcid: form.orcid.value.trim(),
+                llm_api_key: form.llm_api_key.value.trim(),
+                llm_provider: form.llm_provider.value,
                 website: form.website.value,
             };
 

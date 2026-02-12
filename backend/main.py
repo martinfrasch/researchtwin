@@ -43,11 +43,22 @@ class RateLimiter:
         hits.append(now)
         return True
 
+    def remaining(self, key: str) -> int:
+        """Return how many requests remain in the current window."""
+        now = time.time()
+        cutoff = now - self.window
+        hits = [t for t in self._hits.get(key, []) if t > cutoff]
+        return max(0, self.max_requests - len(hits))
+
 
 # Per-IP: 30 chat requests per hour
 _chat_ip_limiter = RateLimiter(max_requests=30, window_seconds=3600)
 # Global: 150 chat requests per day (cost cap ~$5/day with Perplexity sonar)
 _chat_daily_limiter = RateLimiter(max_requests=150, window_seconds=86400)
+# Free tier: 5 chat requests per day per IP (uses server's Perplexity key)
+_free_ip_daily_limiter = RateLimiter(max_requests=5, window_seconds=86400)
+# Funded mode: 10 requests per hour per IP (protects researcher's budget)
+_funded_ip_limiter = RateLimiter(max_requests=10, window_seconds=3600)
 
 
 @asynccontextmanager
@@ -376,6 +387,92 @@ async def chat_byok(req: BYOKChatRequest, request: Request):
     return ChatResponse(reply=reply, researcher_slug=req.researcher_slug)
 
 
+# ---------------------------------------------------------------------------
+# Free-tier chat — limited server-funded queries for visitors
+# ---------------------------------------------------------------------------
+
+@app.post("/chat/free", response_model=ChatResponse)
+async def chat_free(req: ChatRequest, request: Request):
+    """Free-tier chat using the server's Perplexity key. 5 queries/day per IP."""
+    client_ip = request.headers.get("x-real-ip", request.client.host if request.client else "unknown")
+
+    if not _free_ip_daily_limiter.is_allowed(client_ip):
+        raise HTTPException(
+            status_code=429,
+            detail="Free tier exhausted for today. Provide your own API key to continue.",
+        )
+
+    if not _chat_daily_limiter.is_allowed("__global__"):
+        logger.warning("chat/free DAILY_LIMIT_HIT ip=%s", client_ip)
+        raise HTTPException(status_code=503, detail="Service busy. Try again later or provide your own API key.")
+
+    try:
+        researcher = researchers.get_researcher(req.researcher_slug)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Unknown researcher")
+
+    if not os.environ.get("PERPLEXITY_API_KEY"):
+        raise HTTPException(status_code=503, detail="Free chat unavailable")
+
+    remaining = _free_ip_daily_limiter.remaining(client_ip)
+    logger.info("chat/free ip=%s slug=%s msg_len=%d remaining=%d",
+                client_ip, req.researcher_slug, len(req.message), remaining)
+
+    try:
+        s2_data, gh_data, fs_data = await _fetch_all(researcher)
+        qic = compute_researcher_qic(fs_data, gh_data, s2_data)
+        context = build_context(researcher["display_name"], s2_data, gh_data, fs_data, qic)
+        reply = await chat_with_context(context, req.message, researcher["display_name"])
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="Chat request timed out")
+    except Exception:
+        logger.exception("chat/free PIPELINE_ERROR ip=%s slug=%s", client_ip, req.researcher_slug)
+        raise HTTPException(status_code=502, detail="Pipeline error")
+
+    return ChatResponse(reply=reply, researcher_slug=req.researcher_slug)
+
+
+# ---------------------------------------------------------------------------
+# Researcher-funded chat — researcher's stored key, no visitor key needed
+# ---------------------------------------------------------------------------
+
+@app.post("/chat/funded", response_model=ChatResponse)
+async def chat_funded(req: ChatRequest, request: Request):
+    """Chat using the researcher's stored API key. 10 requests/hr per visitor IP."""
+    client_ip = request.headers.get("x-real-ip", request.client.host if request.client else "unknown")
+
+    if not _funded_ip_limiter.is_allowed(client_ip):
+        raise HTTPException(status_code=429, detail="Too many requests. Try again later.")
+
+    try:
+        researcher = researchers.get_researcher(req.researcher_slug)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Unknown researcher")
+
+    llm_config = researchers.get_researcher_llm_config(req.researcher_slug)
+    if not llm_config:
+        raise HTTPException(status_code=404, detail="Funded chat not available for this researcher")
+
+    logger.info("chat/funded ip=%s slug=%s provider=%s msg_len=%d",
+                client_ip, req.researcher_slug, llm_config["provider"], len(req.message))
+
+    try:
+        s2_data, gh_data, fs_data = await _fetch_all(researcher)
+        qic = compute_researcher_qic(fs_data, gh_data, s2_data)
+        context = build_context(researcher["display_name"], s2_data, gh_data, fs_data, qic)
+        reply = await chat_with_byok(
+            context, req.message, researcher["display_name"],
+            api_key=llm_config["api_key"], provider=llm_config["provider"],
+        )
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="Request timed out")
+    except Exception:
+        logger.exception("chat/funded PIPELINE_ERROR ip=%s slug=%s", client_ip, req.researcher_slug)
+        raise HTTPException(status_code=502, detail="Pipeline error")
+
+    return ChatResponse(reply=reply, researcher_slug=req.researcher_slug)
+
+
 @app.get("/api/context/{slug}")
 async def get_context(slug: str):
     researcher = _get_researcher_or_404(slug)
@@ -420,6 +517,41 @@ async def get_context(slug: str):
 
 
 # ---------------------------------------------------------------------------
+# Chat config — tells the widget which modes are available
+# ---------------------------------------------------------------------------
+
+@app.get("/api/chat-config/{slug}")
+async def chat_config(slug: str, request: Request):
+    """Return available chat modes for this researcher's widget. Never exposes keys."""
+    _validate_slug(slug)
+    try:
+        researchers.get_researcher(slug)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="Unknown researcher")
+
+    client_ip = request.headers.get("x-real-ip", request.client.host if request.client else "unknown")
+    modes = []
+    result = {}
+
+    has_server_key = bool(os.environ.get("PERPLEXITY_API_KEY"))
+    if has_server_key:
+        remaining = _free_ip_daily_limiter.remaining(client_ip)
+        result["free_remaining"] = remaining
+        result["free_limit"] = _free_ip_daily_limiter.max_requests
+        if remaining > 0:
+            modes.append("free")
+
+    llm_config = researchers.get_researcher_llm_config(slug)
+    if llm_config:
+        modes.append("funded")
+        result["funded_provider"] = llm_config["provider"]
+
+    modes.append("byok")
+    result["modes"] = modes
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Registration endpoint
 # ---------------------------------------------------------------------------
 
@@ -449,6 +581,8 @@ async def register(req: RegisterRequest):
         github_username=req.github_username,
         figshare_search_name=req.figshare_search_name or "",
         orcid=req.orcid,
+        llm_api_key=req.llm_api_key,
+        llm_provider=req.llm_provider,
     )
 
     return RegisterResponse(
@@ -510,7 +644,7 @@ async def update_profile(slug: str, req: ProfileUpdateRequest):
     # Apply updates (only non-empty fields override)
     updates = {}
     for field in ("semantic_scholar_id", "google_scholar_id", "github_username",
-                  "figshare_search_name", "orcid"):
+                  "figshare_search_name", "orcid", "llm_api_key", "llm_provider"):
         val = getattr(req, field)
         if val:  # only update if provided
             updates[field] = val

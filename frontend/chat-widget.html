@@ -41,7 +41,7 @@
     border-bottom: 1px solid rgba(99, 179, 237, 0.1);
     flex-shrink: 0;
   }
-  .header-left { display: flex; align-items: center; gap: 10px; }
+  .header-left { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .researcher-name {
     font-size: 15px;
     font-weight: 600;
@@ -54,6 +54,14 @@
     padding: 2px 8px;
     border-radius: 10px;
   }
+  .mode-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+  .mode-badge.free { color: #68d391; background: rgba(104, 211, 145, 0.1); }
+  .mode-badge.funded { color: #b794f4; background: rgba(183, 148, 244, 0.1); }
+  .mode-badge.byok { color: #63b3ed; background: rgba(99, 179, 237, 0.1); }
   .badge-link {
     font-size: 11px;
     color: #a0aec0;
@@ -110,6 +118,14 @@
     font-size: 11px;
     color: #4a5568;
     line-height: 1.4;
+  }
+  .exhausted-msg {
+    color: #f6ad55;
+    font-size: 12px;
+    margin-bottom: 4px;
+    padding: 8px 12px;
+    background: rgba(246, 173, 85, 0.08);
+    border-radius: 8px;
   }
 
   /* Messages area */
@@ -241,12 +257,16 @@
     <div class="header-left">
       <span class="researcher-name" id="researcherName">ResearchTwin</span>
       <span class="s-badge hidden" id="sBadge"></span>
+      <span class="mode-badge hidden" id="modeBadge"></span>
     </div>
     <a class="badge-link" href="https://researchtwin.net" target="_blank" rel="noopener">ResearchTwin</a>
   </div>
 
-  <!-- Setup panel (shown until API key provided) -->
-  <div class="setup" id="setupPanel">
+  <!-- Setup panel (shown for BYOK or when free tier exhausted) -->
+  <div class="setup hidden" id="setupPanel">
+    <div class="exhausted-msg hidden" id="exhaustedMsg">
+      Free queries used up for today. Connect your own API key to continue chatting.
+    </div>
     <h3>Connect your LLM to chat with this researcher's digital twin</h3>
     <div>
       <label>Provider</label>
@@ -263,7 +283,12 @@
     <p class="setup-note">Your key is sent per-request and never stored on our servers. It is used only to generate responses about this researcher.</p>
   </div>
 
-  <!-- Chat area (hidden until connected) -->
+  <!-- Loading state -->
+  <div class="setup" id="loadingPanel">
+    <p class="setup-note" style="text-align:center; padding-top:40px; color:#718096;">Loading...</p>
+  </div>
+
+  <!-- Chat area (hidden until a mode is active) -->
   <div class="messages hidden" id="messages"></div>
   <div class="input-area hidden" id="inputArea">
     <input type="text" id="chatInput" placeholder="Ask about this researcher..." disabled>
@@ -282,13 +307,21 @@
   var base = params.get('base') || '';
   var apiBase = base || 'https://researchtwin.net';
 
-  var provider = '';
-  var apiKey = '';
+  // Mode state
+  var activeMode = '';    // 'free', 'funded', 'byok'
+  var freeRemaining = 0;
+  var freeLimit = 0;
+  var byokProvider = '';
+  var byokApiKey = '';
   var sending = false;
 
+  // DOM refs
   var nameEl = document.getElementById('researcherName');
   var badgeEl = document.getElementById('sBadge');
+  var modeBadge = document.getElementById('modeBadge');
   var setupPanel = document.getElementById('setupPanel');
+  var loadingPanel = document.getElementById('loadingPanel');
+  var exhaustedMsg = document.getElementById('exhaustedMsg');
   var messagesEl = document.getElementById('messages');
   var inputArea = document.getElementById('inputArea');
   var chatInput = document.getElementById('chatInput');
@@ -298,59 +331,118 @@
   var providerSelect = document.getElementById('providerSelect');
 
   if (!slug) {
-    nameEl.textContent = 'Error';
-    setupPanel.innerHTML = '<p class="setup-note" style="color:#fc8181;">Missing ?slug= parameter in URL.</p>';
+    loadingPanel.innerHTML = '<p class="setup-note" style="color:#fc8181; text-align:center; padding-top:40px;">Missing ?slug= parameter in URL.</p>';
     return;
   }
 
   // Load researcher info
   fetch(apiBase + '/api/context/' + encodeURIComponent(slug))
-    .then(function(r) { return r.ok ? r.json() : Promise.reject('Researcher not found'); })
+    .then(function(r) { return r.ok ? r.json() : Promise.reject('not found'); })
     .then(function(data) {
       nameEl.textContent = data.display_name || slug;
       badgeEl.textContent = 'S-Index ' + (data.s_index || 0).toFixed(0);
       badgeEl.classList.remove('hidden');
     })
+    .catch(function() { nameEl.textContent = slug; });
+
+  // Fetch chat config to determine available modes
+  fetch(apiBase + '/api/chat-config/' + encodeURIComponent(slug))
+    .then(function(r) { return r.ok ? r.json() : Promise.reject('config failed'); })
+    .then(function(config) {
+      var modes = config.modes || ['byok'];
+      freeRemaining = config.free_remaining || 0;
+      freeLimit = config.free_limit || 0;
+
+      loadingPanel.classList.add('hidden');
+
+      // Priority: saved BYOK key > free > funded > setup panel
+      var savedKey = sessionStorage.getItem('rt_key');
+      var savedProvider = sessionStorage.getItem('rt_provider');
+      if (savedKey) {
+        byokApiKey = savedKey;
+        byokProvider = savedProvider || 'perplexity';
+        activateChat('byok');
+        return;
+      }
+
+      if (modes.indexOf('free') !== -1) {
+        activateChat('free');
+      } else if (modes.indexOf('funded') !== -1) {
+        activateChat('funded');
+      } else {
+        showSetupPanel(false);
+      }
+    })
     .catch(function() {
-      nameEl.textContent = slug;
+      loadingPanel.classList.add('hidden');
+      showSetupPanel(false);
     });
 
-  // Restore saved provider/key from sessionStorage
-  var savedProvider = sessionStorage.getItem('rt_provider');
-  var savedKey = sessionStorage.getItem('rt_key');
-  if (savedProvider) providerSelect.value = savedProvider;
-  if (savedKey) apiKeyInput.value = savedKey;
-
-  // Enable connect button when key is entered
-  apiKeyInput.addEventListener('input', function() {
-    connectBtn.disabled = !apiKeyInput.value.trim();
-  });
-  if (apiKeyInput.value.trim()) connectBtn.disabled = false;
-
-  connectBtn.addEventListener('click', function() {
-    provider = providerSelect.value;
-    apiKey = apiKeyInput.value.trim();
-    if (!apiKey) return;
-
-    sessionStorage.setItem('rt_provider', provider);
-    sessionStorage.setItem('rt_key', apiKey);
-
+  function activateChat(mode) {
+    activeMode = mode;
     setupPanel.classList.add('hidden');
     messagesEl.classList.remove('hidden');
     inputArea.classList.remove('hidden');
     chatInput.disabled = false;
     sendBtn.disabled = false;
     chatInput.focus();
+    updateModeBadge();
 
-    addMessage('bot', 'Connected via ' + provider + '. Ask me anything about this researcher!');
+    if (mode === 'free') {
+      addMessage('bot', 'Ask me anything about this researcher! (' + freeRemaining + ' free queries remaining today)');
+    } else if (mode === 'funded') {
+      addMessage('bot', 'Ask me anything about this researcher!');
+    } else if (mode === 'byok') {
+      addMessage('bot', 'Connected via ' + byokProvider + '. Ask me anything about this researcher!');
+    }
+  }
+
+  function showSetupPanel(exhausted) {
+    setupPanel.classList.remove('hidden');
+    messagesEl.classList.add('hidden');
+    inputArea.classList.add('hidden');
+    if (exhausted) {
+      exhaustedMsg.classList.remove('hidden');
+    }
+    var savedProvider = sessionStorage.getItem('rt_provider');
+    if (savedProvider) providerSelect.value = savedProvider;
+    // Check if there's already a saved key
+    var savedKey = sessionStorage.getItem('rt_key');
+    if (savedKey) { apiKeyInput.value = savedKey; connectBtn.disabled = false; }
+  }
+
+  function updateModeBadge() {
+    modeBadge.classList.remove('hidden', 'free', 'funded', 'byok');
+    if (activeMode === 'free') {
+      modeBadge.textContent = 'Free (' + freeRemaining + '/' + freeLimit + ')';
+      modeBadge.classList.add('free');
+    } else if (activeMode === 'funded') {
+      modeBadge.textContent = 'Powered by researcher';
+      modeBadge.classList.add('funded');
+    } else if (activeMode === 'byok') {
+      modeBadge.textContent = 'Your key';
+      modeBadge.classList.add('byok');
+    }
+  }
+
+  // Connect button handler (BYOK mode)
+  apiKeyInput.addEventListener('input', function() {
+    connectBtn.disabled = !apiKeyInput.value.trim();
   });
 
+  connectBtn.addEventListener('click', function() {
+    byokProvider = providerSelect.value;
+    byokApiKey = apiKeyInput.value.trim();
+    if (!byokApiKey) return;
+    sessionStorage.setItem('rt_provider', byokProvider);
+    sessionStorage.setItem('rt_key', byokApiKey);
+    activateChat('byok');
+  });
+
+  // Send message — route to correct endpoint
   sendBtn.addEventListener('click', sendMessage);
   chatInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   });
 
   function sendMessage() {
@@ -362,22 +454,33 @@
     sending = true;
     chatInput.disabled = true;
     sendBtn.disabled = true;
-
     var thinkingEl = addMessage('thinking', '');
 
-    fetch(apiBase + '/chat/byok', {
+    var url, body;
+    if (activeMode === 'byok') {
+      url = apiBase + '/chat/byok';
+      body = { message: text, researcher_slug: slug, api_key: byokApiKey, provider: byokProvider };
+    } else if (activeMode === 'funded') {
+      url = apiBase + '/chat/funded';
+      body = { message: text, researcher_slug: slug };
+    } else {
+      url = apiBase + '/chat/free';
+      body = { message: text, researcher_slug: slug };
+    }
+
+    fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: text,
-        researcher_slug: slug,
-        api_key: apiKey,
-        provider: provider,
-      }),
+      body: JSON.stringify(body),
     })
     .then(function(r) {
       if (r.status === 401) throw new Error('Invalid API key. Check your key and try again.');
-      if (r.status === 429) throw new Error('Rate limit reached. Please wait a moment.');
+      if (r.status === 429) {
+        if (activeMode === 'free') {
+          throw new Error('__free_exhausted__');
+        }
+        throw new Error('Rate limit reached. Please wait a moment.');
+      }
       if (r.status === 504) throw new Error('Request timed out. Try a shorter question.');
       if (!r.ok) return r.json().then(function(d) { throw new Error(d.detail || 'Request failed'); });
       return r.json();
@@ -385,9 +488,20 @@
     .then(function(data) {
       removeElement(thinkingEl);
       addMessage('bot', data.reply);
+      if (activeMode === 'free') {
+        freeRemaining = Math.max(0, freeRemaining - 1);
+        updateModeBadge();
+      }
     })
     .catch(function(err) {
       removeElement(thinkingEl);
+      if (err.message === '__free_exhausted__') {
+        freeRemaining = 0;
+        updateModeBadge();
+        addMessage('error', 'Free queries used up for today.');
+        showSetupPanel(true);
+        return;
+      }
       addMessage('error', err.message);
     })
     .finally(function() {
@@ -399,17 +513,11 @@
   }
 
   function renderMarkdown(text) {
-    // Sanitize HTML entities first
     var s = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    // Code (inline)
     s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
-    // Bold
     s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    // Italic
     s = s.replace(/\*(.+?)\*/g, '<em>$1</em>');
-    // Links
     s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-    // Split into lines for block processing
     var lines = s.split('\n');
     var html = '';
     var inList = false;
@@ -438,7 +546,6 @@
       }
     }
     if (inList) html += '</' + inList + '>';
-    // Wrap in paragraph, clean up trailing br
     html = '<p>' + html.replace(/<br>(<\/p>|$)/g, '$1') + '</p>';
     html = html.replace(/<p><\/p>/g, '');
     return html;

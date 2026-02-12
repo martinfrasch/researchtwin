@@ -58,6 +58,14 @@ def init_db():
     """)
     conn.commit()
 
+    # Migration: add LLM key columns (idempotent)
+    for col, typedef in [("llm_api_key", "TEXT DEFAULT ''"), ("llm_provider", "TEXT DEFAULT ''")]:
+        try:
+            conn.execute(f"ALTER TABLE researchers ADD COLUMN {col} {typedef}")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+
     # Seed from _SEED_DATA if table is empty
     count = conn.execute("SELECT COUNT(*) FROM researchers").fetchone()[0]
     if count == 0:

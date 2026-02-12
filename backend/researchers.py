@@ -44,6 +44,21 @@ def get_researcher(slug: str) -> dict:
     return _row_to_dict(row)
 
 
+def get_researcher_llm_config(slug: str) -> dict | None:
+    """Return the researcher's stored LLM key/provider, or None if not set.
+
+    Intentionally separate from get_researcher() to prevent key leakage.
+    """
+    slug = slug.lower().strip()
+    row = database.get_db().execute(
+        "SELECT llm_api_key, llm_provider FROM researchers WHERE slug = ? AND status = 'active'",
+        (slug,),
+    ).fetchone()
+    if row is None or not row["llm_api_key"]:
+        return None
+    return {"api_key": row["llm_api_key"], "provider": row["llm_provider"] or "perplexity"}
+
+
 def list_slugs() -> list[str]:
     """Return slugs of all active researchers."""
     rows = database.get_db().execute(
@@ -70,6 +85,8 @@ def create_researcher(
     github_username: str = "",
     figshare_search_name: str = "",
     orcid: str = "",
+    llm_api_key: str = "",
+    llm_provider: str = "",
 ) -> str:
     """Insert a new researcher. Returns the slug."""
     conn = database.get_db()
@@ -77,11 +94,13 @@ def create_researcher(
         """INSERT INTO researchers
            (slug, display_name, email, tier, status,
             semantic_scholar_id, google_scholar_id,
-            github_username, figshare_search_name, orcid)
-           VALUES (?, ?, ?, ?, 'active', ?, ?, ?, ?, ?)""",
+            github_username, figshare_search_name, orcid,
+            llm_api_key, llm_provider)
+           VALUES (?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?)""",
         (slug, display_name, email, tier,
          semantic_scholar_id, google_scholar_id,
-         github_username, figshare_search_name, orcid),
+         github_username, figshare_search_name, orcid,
+         llm_api_key, llm_provider),
     )
     conn.commit()
     return slug
@@ -168,7 +187,7 @@ def verify_update_token(slug: str, code: str) -> bool:
 def update_researcher(slug: str, **fields) -> None:
     """Update specific fields on a researcher record."""
     allowed = {"semantic_scholar_id", "google_scholar_id", "github_username",
-               "figshare_search_name", "orcid"}
+               "figshare_search_name", "orcid", "llm_api_key", "llm_provider"}
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates:
         return

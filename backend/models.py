@@ -14,6 +14,8 @@ class RegisterRequest(BaseModel):
     github_username: str = Field(default="", max_length=39)
     figshare_search_name: str = Field(default="", max_length=100)
     orcid: str = Field(default="", max_length=25)
+    llm_api_key: str = Field(default="", max_length=256)
+    llm_provider: str = Field(default="")
     website: str = Field(default="")  # honeypot — hidden field, bots fill it
 
     @field_validator("name")
@@ -51,6 +53,13 @@ class RegisterRequest(BaseModel):
             raise ValueError("ORCID must be in format XXXX-XXXX-XXXX-XXXX")
         return v
 
+    @field_validator("llm_provider")
+    @classmethod
+    def validate_llm_provider(cls, v):
+        if v and v not in {"perplexity", "openai"}:
+            raise ValueError("Unsupported LLM provider. Choose from: perplexity, openai")
+        return v
+
 
 class RegisterResponse(BaseModel):
     slug: str
@@ -72,6 +81,8 @@ class ProfileUpdateRequest(BaseModel):
     github_username: str = Field(default="", max_length=39)
     figshare_search_name: str = Field(default="", max_length=100)
     orcid: str = Field(default="", max_length=25)
+    llm_api_key: str = Field(default="", max_length=256)
+    llm_provider: str = Field(default="", max_length=20)
 
     @field_validator("code")
     @classmethod
@@ -106,6 +117,13 @@ class ProfileUpdateRequest(BaseModel):
     def validate_orcid(cls, v):
         if v and not re.match(r"^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$", v):
             raise ValueError("ORCID must be in format XXXX-XXXX-XXXX-XXXX")
+        return v
+
+    @field_validator("llm_provider")
+    @classmethod
+    def validate_llm_provider(cls, v):
+        if v and v not in {"perplexity", "openai"}:
+            raise ValueError("Unsupported LLM provider. Choose from: perplexity, openai")
         return v
 
 

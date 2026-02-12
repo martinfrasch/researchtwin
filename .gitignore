@@ -25,8 +25,15 @@ venv/
 # Deprecated archives
 *.zip
 
-# Docker volumes
+# Docker volumes and databases
 backend/data/
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# User-specific config
+node_config.json
 
 # LaTeX build artifacts
 *.aux

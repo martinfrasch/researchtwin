@@ -31,7 +31,7 @@ Services:
 
 ## Deployment
 
-Deployed on Hetzner `94.130.225.75` alongside other services (SefarAI, PPD). The existing Nginx reverse proxy handles SSL and routing for `researchtwin.net`. ResearchTwin runs on its own `researchtwin-network` Docker network.
+Deployed on Hetzner cloud infrastructure alongside other services. The existing Nginx reverse proxy handles SSL and routing for `researchtwin.net`. ResearchTwin runs on its own `researchtwin-network` Docker network.
 
 Key files for deployment:
 - `nginx/researchtwin-ssl.conf` — Drop into the hetzner-deployment `nginx/conf.d/` directory

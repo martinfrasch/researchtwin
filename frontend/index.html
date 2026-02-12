@@ -67,6 +67,8 @@
         .network-stats { display: flex; justify-content: center; gap: 2rem; flex-wrap: wrap; margin-bottom: 2.5rem; }
         .network-stat { text-align: center; }
         .network-stat .value { font-size: 1.8rem; font-weight: 700; background: linear-gradient(135deg, #3498db, #2ecc71); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .network-stat .value.loading { animation: statPulse 1.5s ease-in-out infinite; }
+        @keyframes statPulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.8; } }
         .network-stat .label { font-size: 0.7rem; color: #667788; text-transform: uppercase; letter-spacing: 0.05em; }
         .hero h2 { font-size: 1.1rem; color: #8899aa; margin-bottom: 1rem; font-weight: 400; }
         .researcher-cards { display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; }
@@ -127,11 +129,11 @@
             <strong>ResearchTwin</strong> transforms your publications, code, and datasets into a live knowledge graph with the <strong>S-Index</strong> — an open metric for research quality, impact, and collaboration.
         </p>
         <div class="network-stats" id="network-stats">
-            <div class="network-stat"><div class="value" id="ns-researchers">-</div><div class="label">Researchers</div></div>
-            <div class="network-stat"><div class="value" id="ns-papers">-</div><div class="label">Papers</div></div>
-            <div class="network-stat"><div class="value" id="ns-citations">-</div><div class="label">Citations</div></div>
-            <div class="network-stat"><div class="value" id="ns-repos">-</div><div class="label">Repos</div></div>
-            <div class="network-stat"><div class="value" id="ns-datasets">-</div><div class="label">Datasets</div></div>
+            <div class="network-stat"><div class="value loading" id="ns-researchers">&middot;&middot;&middot;</div><div class="label">Researchers</div></div>
+            <div class="network-stat"><div class="value loading" id="ns-papers">&middot;&middot;&middot;</div><div class="label">Papers</div></div>
+            <div class="network-stat"><div class="value loading" id="ns-citations">&middot;&middot;&middot;</div><div class="label">Citations</div></div>
+            <div class="network-stat"><div class="value loading" id="ns-repos">&middot;&middot;&middot;</div><div class="label">Repos</div></div>
+            <div class="network-stat"><div class="value loading" id="ns-datasets">&middot;&middot;&middot;</div><div class="label">Datasets</div></div>
         </div>
         <h2>Explore the Network</h2>
         <div class="researcher-cards" id="researcher-cards"></div>
@@ -284,12 +286,19 @@
             }
         });
 
-        // Update network-wide stats
-        document.getElementById('ns-researchers').textContent = list.length;
-        document.getElementById('ns-papers').textContent = totalPapers.toLocaleString();
-        document.getElementById('ns-citations').textContent = totalCitations.toLocaleString();
-        document.getElementById('ns-repos').textContent = totalRepos;
-        document.getElementById('ns-datasets').textContent = totalDatasets;
+        // Update network-wide stats and remove loading animation
+        const statUpdates = {
+            'ns-researchers': list.length,
+            'ns-papers': totalPapers.toLocaleString(),
+            'ns-citations': totalCitations.toLocaleString(),
+            'ns-repos': totalRepos,
+            'ns-datasets': totalDatasets,
+        };
+        for (const [id, val] of Object.entries(statUpdates)) {
+            const el = document.getElementById(id);
+            el.textContent = val;
+            el.classList.remove('loading');
+        }
     }
 
     async function loadResearcherList() {

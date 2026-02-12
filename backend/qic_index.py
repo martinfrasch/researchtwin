@@ -11,12 +11,25 @@ Researcher:      S_i = P + Σ s_j
 """
 
 import math
+import re
 
 from connectors.figshare import normalize_item as normalize_figshare_item
 from connectors.github_connector import normalize_item as normalize_github_item
 
 # Field medians for impact normalization (v2.0 deployment baselines)
 FIELD_MEDIANS = {"dataset": 50, "code": 10}
+
+# Figshare defined_type_names that represent independent research artifacts.
+# Excludes figures, posters, presentations, media — those are paper components.
+_ARTIFACT_TYPES = {"dataset", "software", "code", "fileset"}
+
+# Regex patterns for extracting parent work from Figshare figure/supplement titles.
+_PARENT_RE = re.compile(
+    r"^(?:FIGURE\s*\d+|Figure\s+S\d+|Additional\s+file\s+\d+|"
+    r"Supplementary\s+(?:file|data|table|figure)\s*\d*|Table\s+S?\d+)"
+    r"\s*(?:from|of)\s+(.+)",
+    re.IGNORECASE,
+)
 
 
 def _quality_score(item: dict) -> dict:
@@ -91,6 +104,75 @@ def score_github_repo(repo: dict) -> dict:
     return score_item(normalize_github_item(repo))
 
 
+def _deduplicate_figshare(articles: list[dict]) -> list[dict]:
+    """Deduplicate Figshare articles so each parent work is scored once.
+
+    Many Figshare "articles" are individual figures or supplementary files
+    from the same paper. Scoring each separately inflates the S-Index.
+
+    Strategy:
+      1. Filter to genuine artifact types (datasets, software, filesets).
+      2. Group remaining items by parent work (title heuristics).
+      3. Keep the highest-scoring representative from each group.
+    """
+    # Phase 1: separate standalone artifacts from paper components
+    standalone = []
+    components = []  # (group_key, article)
+
+    for art in articles:
+        dtype = (art.get("defined_type_name") or "").lower()
+        title = art.get("title", "")
+
+        # Check if it's a figure/supplement via title pattern
+        m = _PARENT_RE.match(title)
+        if m:
+            parent = m.group(1).strip()[:80].lower()
+            components.append((parent, art))
+            continue
+
+        # Check if it's a non-artifact type (figure, poster, presentation, media)
+        if dtype and dtype not in _ARTIFACT_TYPES and dtype in (
+            "figure", "poster", "presentation", "media",
+        ):
+            # Group by author fingerprint: figures from the same paper share
+            # identical author lists, even when titles differ.
+            authors = art.get("authors", []) or []
+            if isinstance(authors, list) and authors:
+                if isinstance(authors[0], str):
+                    author_key = "|".join(sorted(a.lower() for a in authors))
+                else:
+                    author_key = "|".join(sorted(
+                        (a.get("full_name", "") or "").lower() for a in authors
+                    ))
+            else:
+                author_key = title[:80].lower()
+            group_key = f"authors:{author_key}"
+            components.append((group_key, art))
+            continue
+
+        standalone.append(art)
+
+    # Phase 2: group standalone items by similar titles (catch duplicates)
+    groups: dict[str, list[dict]] = {}
+    for art in standalone:
+        title_key = art.get("title", "")[:80].lower().strip()
+        groups.setdefault(title_key, []).append(art)
+
+    # Add components grouped by their group key (parent title or author fingerprint)
+    for group_key, art in components:
+        groups.setdefault(group_key, []).append(art)
+
+    # Phase 3: from each group, pick the item with highest reuse events
+    deduped = []
+    for group_items in groups.values():
+        best = max(group_items, key=lambda a: (
+            (a.get("downloads", 0) or 0) + (a.get("views", 0) or 0)
+        ))
+        deduped.append(best)
+
+    return deduped
+
+
 def compute_researcher_qic(
     figshare_data: dict,
     github_data: dict,
@@ -100,8 +182,9 @@ def compute_researcher_qic(
 
     S_i = P + Σ s_j    where P = h × (1 + log₁₀(c + 1))
     """
+    deduped_articles = _deduplicate_figshare(figshare_data.get("articles", []))
     dataset_scores = []
-    for article in figshare_data.get("articles", []):
+    for article in deduped_articles:
         dataset_scores.append(score_figshare_article(article))
 
     repo_scores = []

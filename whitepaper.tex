@@ -1,28 +1,27 @@
-\documentclass[11pt]{article}
-\usepackage{geometry}
-\geometry{letterpaper, margin=1in}
+\documentclass{article}
+
+\usepackage{arxiv}
+
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
 \usepackage{amsmath,amssymb,amsthm}
-\usepackage{hyperref}
+\usepackage{nicefrac}       % compact symbols for 1/2, etc.
+\usepackage{microtype}      % microtypography
 \usepackage{graphicx}
+\usepackage{natbib}
+\usepackage{doi}
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit}
-\usepackage{authblk}
-\usepackage{setspace}
-\usepackage{parskip}
-\usepackage{booktabs}
 \usepackage{enumitem}
 \usepackage{xcolor}
+\usepackage{multirow}
 \usepackage{listings}
 \usepackage{algorithm}
 \usepackage{algorithmic}
-\usepackage{url}
-
-\hypersetup{
-    colorlinks=true,
-    linkcolor=blue!70!black,
-    citecolor=green!50!black,
-    urlcolor=blue!60!black,
-}
 
 \lstset{
     basicstyle=\ttfamily\small,
@@ -41,9 +40,26 @@
 Implementing the S-index via Bimodal Glial-Neural Optimization\\
 for Human-AI Research Partnerships}
 
-\author[1]{Martin Frasch}
-\affil[1]{Independent Researcher\\ \texttt{martin@researchtwin.net}}
+\author{
+	\href{https://orcid.org/0000-0002-1400-6730}{\includegraphics[scale=0.06]{orcid.pdf}\hspace{1mm}Martin Frasch} \\
+	Independent Researcher \\
+	\texttt{martin@researchtwin.net} \\
+}
+
 \date{February 2026}
+
+% Uncomment to override the `A preprint' in the header
+%\renewcommand{\headeright}{Technical Report}
+%\renewcommand{\undertitle}{Technical Report}
+\renewcommand{\shorttitle}{ResearchTwin: S-index via BGNO for Human-AI Research Partnerships}
+
+%%% Add PDF metadata
+\hypersetup{
+pdftitle={From Static Repositories to Agentic Knowledge Webs: Implementing the S-index via Bimodal Glial-Neural Optimization for Human-AI Research Partnerships},
+pdfsubject={cs.DL, cs.IR, cs.AI},
+pdfauthor={Martin Frasch},
+pdfkeywords={digital twin, research impact metrics, FAIR principles, retrieval-augmented generation, federated architecture, scholarly communication, inter-agentic discovery},
+}
 
 \begin{document}
 \maketitle
@@ -52,7 +68,7 @@ for Human-AI Research Partnerships}
 The exponential growth of scientific literature, datasets, and code repositories has created a \emph{discovery bottleneck} that impedes knowledge synthesis, reproducibility, and cross-disciplinary collaboration. Traditional dissemination formats---static PDFs, siloed code hosting, and fragmented data repositories---fail to represent the interconnected narrative of modern research. Conventional impact metrics such as the H-index measure citation counts alone, neglecting the substantial contributions of reusable code and shared datasets. We present \textbf{ResearchTwin}, an open-source federated platform that transforms a researcher's complete scholarly output into a conversational digital twin, together with a preliminary evaluation of its deployed prototype. The system is built on a \emph{Bimodal Glial-Neural Optimization} (BGNO) architecture comprising a Multi-Modal Connector Layer, a Glial Layer for caching and rate management, and a Neural Layer implementing Retrieval-Augmented Generation with Claude. We formalize the \textbf{S-index}, a composite metric grounded in the Quality--Impact--Collaboration (QIC) framework that extends FAIR principles to quantify the multi-modal impact of research artifacts. A case study comparing two researchers with similar H-indexes but substantially different S-indexes demonstrates that the metric captures dimensions of impact---particularly dataset and code contributions---invisible to citation-based measures alone. ResearchTwin exposes an inter-agentic discovery API using Schema.org typed responses, enabling autonomous AI agents to navigate researcher profiles via HATEOAS links and discover cross-lab synergies. A three-tier federated architecture---Local Nodes, Hubs, and Hosted Edges---preserves data sovereignty while enabling global discoverability. The platform is released as open-source software at \url{https://github.com/martinfrasch/ResearchTwin}.
 \end{abstract}
 
-\noindent\textbf{Keywords:} digital twin, research impact metrics, FAIR principles, retrieval-augmented generation, federated architecture, scholarly communication, inter-agentic discovery
+\keywords{digital twin \and research impact metrics \and FAIR principles \and retrieval-augmented generation \and federated architecture \and scholarly communication \and inter-agentic discovery}
 
 % ============================================================================
 \section{Introduction}
@@ -641,6 +657,8 @@ The author thanks the open-source community and early adopters for their feedbac
 % ============================================================================
 % References
 % ============================================================================
+
+\bibliographystyle{unsrtnat}
 
 \begin{thebibliography}{20}
 

@@ -93,6 +93,46 @@
             padding: 0.6rem; font-family: 'SF Mono', Consolas, monospace; font-size: 0.72rem;
             color: #2ecc71; resize: none; height: 3.5rem;
         }
+
+        /* How-to embed section */
+        .howto {
+            margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #ffffff0a;
+        }
+        .howto h2 {
+            font-size: 1.3rem; margin-bottom: 0.3rem;
+            background: linear-gradient(135deg, #3498db, #2ecc71);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        }
+        .howto .subtitle { font-size: 0.85rem; color: #8899aa; margin-bottom: 1.25rem; }
+        .howto .preview-frame {
+            border: 1px solid #3498db33; border-radius: 10px; overflow: hidden;
+            margin-bottom: 1.25rem; background: #131825;
+        }
+        .howto .preview-frame iframe { display: block; }
+        .howto .steps { list-style: none; padding: 0; }
+        .howto .steps li {
+            margin-bottom: 1rem; padding-left: 1.6rem; position: relative;
+            font-size: 0.85rem; line-height: 1.6; color: #c0c8d0;
+        }
+        .howto .steps li::before {
+            content: attr(data-step);
+            position: absolute; left: 0; color: #3498db; font-weight: 700; font-size: 0.9rem;
+        }
+        .howto .steps li strong { color: #e0e0e0; }
+        .howto .code-block {
+            display: block; background: #0a0e17; border: 1px solid #ffffff0a; border-radius: 6px;
+            padding: 0.6rem 0.75rem; font-family: 'SF Mono', Consolas, monospace; font-size: 0.75rem;
+            color: #2ecc71; margin: 0.4rem 0; overflow-x: auto; white-space: pre; cursor: pointer;
+            position: relative;
+        }
+        .howto .code-block:hover { border-color: #3498db44; }
+        .howto .code-block .copy-hint {
+            position: absolute; top: 0.4rem; right: 0.5rem; font-size: 0.6rem; color: #556677;
+        }
+        .howto .platform-note {
+            font-size: 0.75rem; color: #718096; margin-top: 0.5rem; line-height: 1.5;
+        }
+        .howto .platform-note strong { color: #8899aa; }
     </style>
 </head>
 <body>
@@ -218,9 +258,37 @@
             <a href="/" class="view-link" id="view-link">View Your Digital Twin &rarr;</a>
             <p style="color:#8899aa; font-size:0.8rem; margin-top:1rem;">Need to add or change your research IDs later? <a href="/update.html" style="color:#3498db;" id="update-link">Update your profile</a></p>
             <div class="embed-section">
-                <h4>Embed Widget (copy this code)</h4>
+                <h4>Embed your S-Index on your lab website (copy this code)</h4>
                 <textarea class="embed-code" id="embed-code" readonly></textarea>
             </div>
+        </div>
+
+        <!-- How to embed section (always visible) -->
+        <div class="howto" id="howto">
+            <h2>Embed Your S-Index</h2>
+            <p class="subtitle">Show your S-Index on your lab website, Google Sites page, or personal homepage.</p>
+
+            <div class="preview-frame">
+                <iframe src="/embed.html?slug=martin-frasch" width="100%" height="180" style="border:none;" loading="lazy"></iframe>
+            </div>
+
+            <ol class="steps">
+                <li data-step="1.">
+                    <strong>Copy the embed code</strong> below, replacing <code style="display:inline; background:#131825; padding:0.15rem 0.4rem; border-radius:3px; font-size:0.78rem; color:#e67e22;">YOUR-SLUG</code> with your researcher slug:
+                    <span class="code-block" onclick="copyCode(this)">&lt;iframe src="https://researchtwin.net/embed.html?slug=YOUR-SLUG" width="440" height="180" style="border:none; border-radius:12px;" loading="lazy"&gt;&lt;/iframe&gt;<span class="copy-hint">click to copy</span></span>
+                </li>
+                <li data-step="2.">
+                    <strong>Paste it into your website:</strong>
+                    <p class="platform-note">
+                        <strong>Google Sites:</strong> Edit your page &rarr; Insert &rarr; Embed &rarr; "By URL" tab &rarr; paste <code style="display:inline; background:#131825; padding:0.1rem 0.35rem; border-radius:3px; font-size:0.75rem; color:#2ecc71;">https://researchtwin.net/embed.html?slug=YOUR-SLUG</code><br>
+                        <strong>WordPress:</strong> Add a Custom HTML block &rarr; paste the iframe code<br>
+                        <strong>Any HTML page:</strong> Paste the iframe code directly into your HTML
+                    </p>
+                </li>
+                <li data-step="3.">
+                    <strong>Done!</strong> The widget fetches live data and updates automatically as your research profile grows.
+                </li>
+            </ol>
         </div>
     </div>
 
@@ -291,7 +359,19 @@
             document.getElementById('view-link').href = `/?researcher=${result.slug}`;
             document.getElementById('update-link').href = `/update.html?slug=${result.slug}`;
             document.getElementById('embed-code').value =
-                `<iframe src="https://researchtwin.net/?researcher=${result.slug}" width="100%" height="600" frameborder="0"></iframe>`;
+                `<iframe src="https://researchtwin.net/embed.html?slug=${result.slug}" width="440" height="180" style="border:none; border-radius:12px;" loading="lazy"></iframe>`;
+
+            // Update the how-to preview to show the new researcher
+            const preview = document.querySelector('.howto .preview-frame iframe');
+            if (preview) preview.src = `/embed.html?slug=${result.slug}`;
+        }
+
+        function copyCode(el) {
+            const text = el.childNodes[0].textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const hint = el.querySelector('.copy-hint');
+                if (hint) { hint.textContent = 'copied!'; setTimeout(() => hint.textContent = 'click to copy', 1500); }
+            });
         }
     </script>
 </body>

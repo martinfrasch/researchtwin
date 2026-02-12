@@ -139,6 +139,31 @@ This repository is part of the **[ResearchTwin Ecosystem](https://github.com/use
 
 ---
 
+## Embeddable S-Index Widget
+
+Show your S-Index on your lab website, Google Sites page, or personal homepage:
+
+```html
+<iframe
+  src="https://researchtwin.net/embed.html?slug=YOUR-SLUG"
+  width="440" height="180"
+  style="border:none; border-radius:12px;"
+  loading="lazy">
+</iframe>
+```
+
+Replace `YOUR-SLUG` with your researcher slug (e.g. `martin-frasch`).
+
+**Google Sites**: Edit page > Insert > Embed > "By URL" tab > paste `https://researchtwin.net/embed.html?slug=YOUR-SLUG`
+
+**WordPress**: Add a Custom HTML block and paste the iframe code.
+
+The widget displays the researcher's name, S-Index score, h-index, citation count, and paper count. Data updates automatically from live API sources.
+
+[See it in action](https://researchtwin.net/embed.html?slug=martin-frasch) | [Full embed instructions](https://researchtwin.net/join.html#howto)
+
+---
+
 ## Documentation
 
 | Document | Description |

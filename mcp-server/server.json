@@ -21,8 +21,7 @@
       "environmentVariables": [
         {
           "name": "RESEARCHTWIN_URL",
-          "description": "Base URL for ResearchTwin API (default: https://researchtwin.net)",
-          "required": false
+          "description": "Base URL for ResearchTwin API (default: https://researchtwin.net)"
         }
       ]
     }

@@ -1,1 +1,451 @@
-þÙ©þf©o®-Æ
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Map â€” ResearchTwin</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" crossorigin="">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" crossorigin="">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0e17; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        .header { text-align: center; padding: 1rem 1rem 0.5rem; flex-shrink: 0; }
+        .header h1 { font-size: 1.8rem; margin-bottom: 0.3rem; background: linear-gradient(135deg, #3498db, #2ecc71); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .header .tagline { font-size: 0.85rem; color: #8899aa; margin-bottom: 0.5rem; }
+        .back-link { display: inline-block; font-size: 0.8rem; color: #3498db; text-decoration: none; }
+        .back-link:hover { text-decoration: underline; }
+
+        .main-content { flex: 1; display: flex; position: relative; overflow: hidden; }
+
+        #map-container { flex: 1; position: relative; overflow: hidden; }
+        #map { position: absolute; top: 0; left: 0; right: 0; bottom: 0; }
+
+        /* Side panel */
+        .side-panel {
+            width: 320px; flex-shrink: 0; background: #0f1420;
+            border-left: 1px solid #1a2030; overflow-y: auto;
+            display: flex; flex-direction: column; transition: width 0.3s;
+        }
+        .side-panel.collapsed { width: 0; border-left: none; overflow: hidden; }
+
+        .panel-toggle {
+            position: absolute; right: 320px; top: 50%; z-index: 1001;
+            transform: translateY(-50%); background: #1a1f2e; border: 1px solid #3498db44;
+            color: #8899aa; padding: 0.5rem 0.25rem; cursor: pointer; border-radius: 4px 0 0 4px;
+            font-size: 0.75rem; transition: right 0.3s;
+        }
+        .side-panel.collapsed + .panel-toggle,
+        .side-panel.collapsed ~ .panel-toggle { right: 0; }
+
+        .panel-header {
+            padding: 1rem; border-bottom: 1px solid #1a2030; font-size: 0.85rem;
+            font-weight: 600; color: #8899aa; text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .panel-content { padding: 0.75rem; flex: 1; }
+
+        .researcher-card {
+            background: #151a28; border: 1px solid #1a2030; border-radius: 8px;
+            padding: 0.75rem; margin-bottom: 0.5rem; cursor: pointer; transition: border-color 0.2s;
+        }
+        .researcher-card:hover, .researcher-card.active { border-color: #3498db66; }
+        .researcher-card .name { font-weight: 600; font-size: 0.85rem; margin-bottom: 0.25rem; }
+        .researcher-card .meta { font-size: 0.72rem; color: #667788; line-height: 1.5; }
+        .researcher-card .aff-count { font-size: 0.7rem; color: #3498db; margin-top: 0.3rem; }
+
+        .researcher-detail { padding: 0.5rem; }
+        .detail-back { font-size: 0.75rem; color: #3498db; cursor: pointer; margin-bottom: 0.75rem; display: inline-block; }
+        .detail-back:hover { text-decoration: underline; }
+        .detail-name { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .detail-section { margin-bottom: 0.75rem; }
+        .detail-section h4 { font-size: 0.72rem; color: #8899aa; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.3rem; }
+        .aff-item { font-size: 0.78rem; padding: 0.3rem 0; border-bottom: 1px solid #1a203022; }
+        .aff-item:last-child { border-bottom: none; }
+        .aff-current { color: #2ecc71; }
+        .aff-past { color: #667788; }
+        .detail-link { display: inline-block; margin-top: 0.5rem; font-size: 0.78rem; color: #3498db; text-decoration: none; }
+        .detail-link:hover { text-decoration: underline; }
+
+        .loading-overlay {
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: #0a0e17ee; display: flex; align-items: center; justify-content: center;
+            flex-direction: column; z-index: 1000; transition: opacity 0.3s;
+        }
+        .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+        .spinner { width: 28px; height: 28px; border: 2px solid #3498db33; border-top-color: #3498db; border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 0.75rem; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { color: #667788; font-size: 0.85rem; }
+
+        .stats-bar { display: flex; justify-content: center; gap: 1.5rem; padding: 0.5rem; font-size: 0.75rem; color: #8899aa; flex-wrap: wrap; flex-shrink: 0; }
+        .stat { display: flex; align-items: center; gap: 0.3rem; }
+        .stat-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .stat-dot.current { background: #2ecc71; }
+        .stat-dot.past { background: #3498db; opacity: 0.6; }
+
+        .error-msg { text-align: center; color: #e74c3c; padding: 2rem; font-size: 0.85rem; }
+
+        /* Custom Leaflet popups */
+        .leaflet-popup-content-wrapper { background: #1a1f2e; color: #e0e0e0; border: 1px solid #3498db44; border-radius: 8px; }
+        .leaflet-popup-tip { background: #1a1f2e; }
+        .leaflet-popup-content { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 0.82rem; line-height: 1.5; }
+        .leaflet-popup-content a { color: #3498db; }
+        .popup-name { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.2rem; }
+        .popup-institution { color: #8899aa; font-size: 0.78rem; }
+        .popup-link { display: inline-block; margin-top: 0.3rem; font-size: 0.75rem; }
+
+        /* Dark tile styling */
+        .leaflet-container { background: #0a0e17; }
+        .leaflet-control-zoom a { background: #1a1f2e !important; color: #e0e0e0 !important; border-color: #3498db44 !important; }
+        .leaflet-control-zoom a:hover { background: #242a3e !important; }
+        .leaflet-control-attribution { background: #0a0e17cc !important; color: #556677 !important; font-size: 0.6rem !important; }
+        .leaflet-control-attribution a { color: #3498db !important; }
+
+        /* Cluster marker styling */
+        .marker-cluster-small { background-color: #3498db44; }
+        .marker-cluster-small div { background-color: #3498db; color: #fff; }
+        .marker-cluster-medium { background-color: #2ecc7144; }
+        .marker-cluster-medium div { background-color: #2ecc71; color: #fff; }
+        .marker-cluster-large { background-color: #e67e2244; }
+        .marker-cluster-large div { background-color: #e67e22; color: #fff; }
+        .marker-cluster div { width: 30px; height: 30px; margin-left: 5px; margin-top: 5px; text-align: center; border-radius: 15px; font-size: 12px; line-height: 30px; font-weight: 600; }
+
+        /* Collaboration lines */
+        .collab-line { stroke-dasharray: 6 4; }
+
+        /* Legend */
+        .map-legend {
+            position: absolute; bottom: 2rem; left: 1rem; z-index: 1000;
+            background: #0f1420ee; border: 1px solid #1a2030; border-radius: 8px;
+            padding: 0.6rem 0.8rem; font-size: 0.7rem;
+        }
+        .legend-item { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.25rem; }
+        .legend-item:last-child { margin-bottom: 0; }
+        .legend-line { width: 20px; height: 2px; }
+
+        @media (max-width: 768px) {
+            .side-panel { position: absolute; right: 0; top: 0; bottom: 0; z-index: 1001; width: 280px; }
+            .side-panel.collapsed { width: 0; }
+            .panel-toggle { right: 0; }
+            .side-panel:not(.collapsed) ~ .panel-toggle { right: 280px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Network Map</h1>
+        <p class="tagline">Geographic distribution of researcher affiliations</p>
+        <a href="/" class="back-link">&larr; Back to dashboard</a>
+    </div>
+
+    <div class="main-content">
+        <div id="map-container">
+            <div class="loading-overlay" id="loading">
+                <div class="spinner"></div>
+                <div class="loading-text">Loading researcher affiliations...</div>
+            </div>
+            <div id="map"></div>
+            <div class="map-legend" id="legend" style="display:none">
+                <div class="legend-item">
+                    <div class="stat-dot current"></div>
+                    <span>Current affiliation</span>
+                </div>
+                <div class="legend-item">
+                    <div class="stat-dot past"></div>
+                    <span>Past affiliation</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-line" style="background: linear-gradient(90deg, #3498db66, #2ecc7166); height: 2px; border-top: 1px dashed #3498db88;"></div>
+                    <span>Shared institution</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="side-panel" id="sidePanel">
+            <div class="panel-header">Researchers</div>
+            <div class="panel-content" id="panelContent">
+                <div style="color:#556677; font-size:0.78rem; text-align:center; padding-top:2rem;">Loading...</div>
+            </div>
+        </div>
+        <button class="panel-toggle" id="panelToggle" title="Toggle panel">&lsaquo;</button>
+    </div>
+
+    <div class="stats-bar" id="stats"></div>
+    <div class="error-msg" id="error" style="display:none"></div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
+    <script>
+    const TILE_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+    const TILE_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>';
+
+    const map = L.map('map', {
+        center: [30, 0],
+        zoom: 2,
+        minZoom: 2,
+        maxZoom: 12,
+        zoomControl: true,
+        attributionControl: true,
+    });
+
+    L.tileLayer(TILE_URL, {
+        attribution: TILE_ATTR,
+        subdomains: 'abcd',
+        maxZoom: 19,
+    }).addTo(map);
+
+    // Marker cluster group
+    const clusterGroup = L.markerClusterGroup({
+        maxClusterRadius: 40,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        iconCreateFunction: function(cluster) {
+            const count = cluster.getChildCount();
+            let size = 'small';
+            if (count >= 10) size = 'large';
+            else if (count >= 5) size = 'medium';
+            return L.divIcon({
+                html: '<div>' + count + '</div>',
+                className: 'marker-cluster marker-cluster-' + size,
+                iconSize: L.point(40, 40),
+            });
+        }
+    });
+
+    // Collaboration lines layer
+    const collabLayer = L.layerGroup().addTo(map);
+
+    function makeIcon(color, size) {
+        return L.divIcon({
+            className: '',
+            html: `<div style="
+                width:${size}px; height:${size}px;
+                background:${color}; border-radius:50%;
+                border:2px solid ${color}88;
+                box-shadow: 0 0 ${size}px ${color}44;
+            "></div>`,
+            iconSize: [size, size],
+            iconAnchor: [size/2, size/2],
+            popupAnchor: [0, -size/2],
+        });
+    }
+
+    // State
+    let allData = null;
+    let researcherMarkers = {};
+
+    // Panel toggle
+    const sidePanel = document.getElementById('sidePanel');
+    const panelToggle = document.getElementById('panelToggle');
+    panelToggle.addEventListener('click', () => {
+        sidePanel.classList.toggle('collapsed');
+        panelToggle.textContent = sidePanel.classList.contains('collapsed') ? '\u203A' : '\u2039';
+        setTimeout(() => map.invalidateSize(), 350);
+    });
+
+    function showResearcherList() {
+        if (!allData) return;
+        const panel = document.getElementById('panelContent');
+        let html = '';
+        for (const r of allData.researchers) {
+            const currentAffs = r.affiliations.filter(a => a.current).length;
+            const pastAffs = r.affiliations.filter(a => !a.current).length;
+            const institutions = [...new Set(r.affiliations.map(a => a.institution))];
+            html += `
+                <div class="researcher-card" data-slug="${r.slug}" onclick="showResearcherDetail('${r.slug}')">
+                    <div class="name">${r.name}</div>
+                    <div class="meta">${institutions.slice(0, 2).join(', ')}${institutions.length > 2 ? ' +' + (institutions.length - 2) + ' more' : ''}</div>
+                    <div class="aff-count">${currentAffs} current, ${pastAffs} past affiliation${pastAffs !== 1 ? 's' : ''}</div>
+                </div>
+            `;
+        }
+        if (!html) html = '<div style="color:#556677; font-size:0.78rem; text-align:center; padding-top:2rem;">No researchers with affiliations.</div>';
+        panel.innerHTML = html;
+    }
+
+    function showResearcherDetail(slug) {
+        const r = allData.researchers.find(x => x.slug === slug);
+        if (!r) return;
+
+        // Highlight markers
+        document.querySelectorAll('.researcher-card').forEach(c => c.classList.remove('active'));
+        const card = document.querySelector(`.researcher-card[data-slug="${slug}"]`);
+        if (card) card.classList.add('active');
+
+        const panel = document.getElementById('panelContent');
+        let affHtml = '';
+        for (const a of r.affiliations) {
+            const loc = [a.city, a.country].filter(Boolean).join(', ');
+            const cls = a.current ? 'aff-current' : 'aff-past';
+            const label = a.current ? 'Current' : 'Past';
+            affHtml += `<div class="aff-item"><span class="${cls}">[${label}]</span> ${a.institution}${loc ? ' â€” ' + loc : ''}</div>`;
+        }
+
+        panel.innerHTML = `
+            <div class="researcher-detail">
+                <span class="detail-back" onclick="showResearcherList()">&larr; All researchers</span>
+                <div class="detail-name">${r.name}</div>
+                <div class="detail-section">
+                    <h4>Affiliations (${r.affiliations.length})</h4>
+                    ${affHtml}
+                </div>
+                <a class="detail-link" href="/?researcher=${r.slug}">View Digital Twin &rarr;</a>
+            </div>
+        `;
+
+        // Zoom to this researcher's markers
+        if (researcherMarkers[slug] && researcherMarkers[slug].length > 0) {
+            const bounds = researcherMarkers[slug].map(m => m.getLatLng());
+            if (bounds.length === 1) {
+                map.setView(bounds[0], 6, { animate: true });
+            } else {
+                map.fitBounds(bounds, { padding: [60, 60], maxZoom: 8, animate: true });
+            }
+        }
+    }
+
+    function drawCollaborationLines(researchers) {
+        // Find institutions shared between researchers
+        collabLayer.clearLayers();
+        if (researchers.length < 2) return;
+
+        const instCoords = {};
+        for (const r of researchers) {
+            for (const a of r.affiliations) {
+                const key = a.institution;
+                if (!instCoords[key]) instCoords[key] = [];
+                instCoords[key].push({ researcher: r.slug, lat: a.lat, lng: a.lng });
+            }
+        }
+
+        // Draw lines between researchers who share an institution
+        const drawnPairs = new Set();
+        for (const inst in instCoords) {
+            const entries = instCoords[inst];
+            if (entries.length < 2) continue;
+
+            const slugs = [...new Set(entries.map(e => e.researcher))];
+            if (slugs.length < 2) continue;
+
+            for (let i = 0; i < slugs.length; i++) {
+                for (let j = i + 1; j < slugs.length; j++) {
+                    const pairKey = [slugs[i], slugs[j]].sort().join('|');
+                    if (drawnPairs.has(pairKey)) continue;
+                    drawnPairs.add(pairKey);
+
+                    const from = entries.find(e => e.researcher === slugs[i]);
+                    const to = entries.find(e => e.researcher === slugs[j]);
+                    if (!from || !to) continue;
+
+                    const line = L.polyline(
+                        [[from.lat, from.lng], [to.lat, to.lng]],
+                        { color: '#3498db', weight: 1.5, opacity: 0.3, dashArray: '6 4', className: 'collab-line' }
+                    );
+                    line.bindPopup(`<div style="font-size:0.78rem"><b>Shared:</b> ${inst}</div>`);
+                    collabLayer.addLayer(line);
+                }
+            }
+        }
+    }
+
+    async function loadMap() {
+        const loading = document.getElementById('loading');
+        const errorEl = document.getElementById('error');
+
+        try {
+            const resp = await fetch('/api/network/map');
+            if (!resp.ok) throw new Error(`API returned ${resp.status}`);
+            allData = await resp.json();
+
+            if (allData.total_researchers === 0) {
+                loading.classList.add('hidden');
+                errorEl.style.display = '';
+                errorEl.textContent = 'No researcher affiliations available yet.';
+                document.getElementById('panelContent').innerHTML = '<div style="color:#556677; font-size:0.78rem; text-align:center; padding-top:2rem;">No data available.</div>';
+                return;
+            }
+
+            let totalCurrent = 0;
+            let totalPast = 0;
+            const bounds = [];
+
+            for (const researcher of allData.researchers) {
+                researcherMarkers[researcher.slug] = [];
+
+                for (const aff of researcher.affiliations) {
+                    const isCurrent = aff.current;
+                    const color = isCurrent ? '#2ecc71' : '#3498db';
+                    const size = isCurrent ? 14 : 10;
+                    const icon = makeIcon(color, size);
+
+                    if (isCurrent) totalCurrent++;
+                    else totalPast++;
+
+                    const location = [aff.city, aff.country].filter(Boolean).join(', ');
+                    const popup = `
+                        <div class="popup-name">${researcher.name}</div>
+                        <div class="popup-institution">
+                            ${aff.institution}${location ? '<br>' + location : ''}
+                            ${isCurrent ? '<br><span style="color:#2ecc71">Current</span>' : '<br><span style="color:#667788">Past</span>'}
+                        </div>
+                        <a class="popup-link" href="/?researcher=${researcher.slug}">View Digital Twin &rarr;</a>
+                    `;
+
+                    const lat = aff.lat + (Math.random() - 0.5) * 0.01;
+                    const lng = aff.lng + (Math.random() - 0.5) * 0.01;
+
+                    const marker = L.marker([lat, lng], { icon })
+                        .bindPopup(popup);
+
+                    clusterGroup.addLayer(marker);
+                    researcherMarkers[researcher.slug].push(marker);
+                    bounds.push([lat, lng]);
+                }
+            }
+
+            map.addLayer(clusterGroup);
+
+            // Draw collaboration lines
+            drawCollaborationLines(allData.researchers);
+
+            if (bounds.length > 0) {
+                map.fitBounds(bounds, { padding: [50, 50], maxZoom: 6 });
+            }
+
+            // Stats
+            document.getElementById('stats').innerHTML = `
+                <div class="stat">
+                    <div class="stat-dot current"></div>
+                    ${totalCurrent} current affiliation${totalCurrent !== 1 ? 's' : ''}
+                </div>
+                <div class="stat">
+                    <div class="stat-dot past"></div>
+                    ${totalPast} past affiliation${totalPast !== 1 ? 's' : ''}
+                </div>
+                <div class="stat">
+                    ${allData.total_researchers} researcher${allData.total_researchers !== 1 ? 's' : ''} mapped
+                </div>
+            `;
+
+            // Show legend
+            document.getElementById('legend').style.display = '';
+
+            // Populate side panel
+            showResearcherList();
+
+            loading.classList.add('hidden');
+            setTimeout(() => map.invalidateSize(), 100);
+
+        } catch (e) {
+            loading.classList.add('hidden');
+            errorEl.style.display = '';
+            errorEl.textContent = `Failed to load map data: ${e.message}`;
+            document.getElementById('panelContent').innerHTML = '<div style="color:#e74c3c; font-size:0.78rem; text-align:center; padding-top:2rem;">Error loading data.</div>';
+        }
+    }
+
+    loadMap();
+    </script>
+</body>
+</html>

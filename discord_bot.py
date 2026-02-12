@@ -26,20 +26,27 @@ async def research(interaction: discord.Interaction, query: str, slug: str):
     await interaction.response.defer()
 
     try:
-        # Call the FastAPI backend we built yesterday
         response = requests.post(
-            f"{API_BASE_URL}/chat", 
+            f"{API_BASE_URL}/chat",
             json={"message": query, "researcher_slug": slug},
-            timeout=30
+            timeout=30,
         )
+        if response.status_code == 404:
+            await interaction.followup.send(
+                f"Researcher **{slug}** not found. Register at https://researchtwin.net/join.html"
+            )
+            return
+        if response.status_code == 503:
+            await interaction.followup.send("Chat is currently unavailable (no API key configured on this node).")
+            return
+        response.raise_for_status()
         data = response.json()
         reply = data.get("reply", "No response from the brain.")
 
-        # Format as a nice embed
         embed = discord.Embed(title=f"Research Query: {slug}", description=reply, color=0x3498db)
         embed.set_footer(text="Powered by ResearchTwin.net | BGNO Architecture")
         await interaction.followup.send(embed=embed)
-    except Exception as e:
+    except requests.RequestException as e:
         await interaction.followup.send(f"Error connecting to ResearchTwin: {str(e)}")
 
 @client.tree.command(name="sindex", description="Check a researcher's real-time S-index")
@@ -47,8 +54,13 @@ async def sindex(interaction: discord.Interaction, slug: str):
     await interaction.response.defer()
 
     try:
-        # Call the context endpoint to get S-index metrics
         response = requests.get(f"{API_BASE_URL}/api/context/{slug}", timeout=15)
+        if response.status_code == 404:
+            await interaction.followup.send(
+                f"Researcher **{slug}** not found. Register at https://researchtwin.net/join.html"
+            )
+            return
+        response.raise_for_status()
         data = response.json()
 
         s_score = data.get("s_index", 0)
@@ -59,7 +71,7 @@ async def sindex(interaction: discord.Interaction, slug: str):
         embed.set_footer(text="Metrics: Citations + Code Utility + Data Reuse")
 
         await interaction.followup.send(embed=embed)
-    except Exception as e:
+    except requests.RequestException as e:
         await interaction.followup.send(f"Could not calculate S-index: {str(e)}")
 
 if __name__ == '__main__':

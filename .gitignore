@@ -5,7 +5,7 @@ Thumbs.db
 # Environment
 .env
 .env.*
-\!.env.example
+!.env.example
 
 # Obsidian
 .obsidian/
@@ -28,3 +28,19 @@ venv/
 # Docker volumes
 backend/data/
 
+# LaTeX build artifacts
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+
+# Playwright MCP temp files
+.playwright-mcp/
+
+# Claude local settings
+.claude/settings.local.json
+
+# Session logs (may contain secrets)
+2026-*.md

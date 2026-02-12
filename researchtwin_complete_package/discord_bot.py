@@ -4,9 +4,9 @@ from discord import app_commands
 import requests
 import os
 
-# Configuration from environment (set in docker-compose.yml)
-API_BASE_URL = os.environ.get("API_BASE_URL", "http://backend:8000")
-BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
+# Configuration
+API_BASE_URL = "https://api.researchtwin.net" # Your Hetzner URL
+BOT_TOKEN = "YOUR_DISCORD_BOT_TOKEN" # Replace with your token
 
 class ResearchTwinBot(discord.Client):
     def __init__(self):
@@ -15,19 +15,8 @@ class ResearchTwinBot(discord.Client):
         self.tree = app_commands.CommandTree(self)
 
     async def setup_hook(self):
-        # Sync to specific guild for instant availability
-        guild_id = os.environ.get("DISCORD_GUILD_ID", "")
-        if guild_id:
-            guild = discord.Object(id=int(guild_id))
-            self.tree.copy_global_to(guild=guild)
-            await self.tree.sync(guild=guild)
-            print(f"Synced slash commands to guild {guild_id}")
-        # Also sync globally (takes up to 1hr to propagate)
-        try:
-            await self.tree.sync()
-            print(f"Synced global slash commands for {self.user}")
-        except Exception as e:
-            print(f"Global sync failed (non-critical): {e}")
+        await self.tree.sync()
+        print(f"Synced slash commands for {self.user}")
 
 client = ResearchTwinBot()
 
@@ -74,7 +63,5 @@ async def sindex(interaction: discord.Interaction, slug: str):
         await interaction.followup.send(f"Could not calculate S-index: {str(e)}")
 
 if __name__ == '__main__':
-    if not BOT_TOKEN:
-        print("ERROR: DISCORD_BOT_TOKEN not set")
-        exit(1)
-    client.run(BOT_TOKEN)
+    # client.run(BOT_TOKEN)
+    print("Bot script ready. Replace token and run.")

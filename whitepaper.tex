@@ -49,7 +49,7 @@ for Human-AI Research Partnerships}
 \maketitle
 
 \begin{abstract}
-The exponential growth of scientific literature, datasets, and code repositories has created a \emph{discovery bottleneck} that impedes knowledge synthesis, reproducibility, and cross-disciplinary collaboration. Traditional dissemination formats---static PDFs, siloed code hosting, and fragmented data repositories---fail to represent the interconnected narrative of modern research. Conventional impact metrics such as the H-index measure citation counts alone, neglecting the substantial contributions of reusable code and shared datasets. We introduce \textbf{ResearchTwin}, an open-source federated platform that transforms a researcher's complete scholarly output into a conversational digital twin. The system is built on a novel \emph{Bimodal Glial-Neural Optimization} (BGNO) architecture comprising a Multi-Modal Connector Layer, a Glial Layer for caching and rate management, and a Neural Layer implementing Retrieval-Augmented Generation with Claude. We formalize the \textbf{S-index}, a composite metric grounded in the Quality--Impact--Collaboration (QIC) framework that extends FAIR principles to quantify the multi-modal impact of research artifacts. ResearchTwin exposes an inter-agentic discovery API using Schema.org typed responses, enabling autonomous AI agents to navigate researcher profiles via HATEOAS links and discover cross-lab synergies. A three-tier federated architecture---Local Nodes, Hubs, and Hosted Edges---preserves data sovereignty while enabling global discoverability. The platform is released as open-source software at \url{https://github.com/martinfrasch/ResearchTwin}.
+The exponential growth of scientific literature, datasets, and code repositories has created a \emph{discovery bottleneck} that impedes knowledge synthesis, reproducibility, and cross-disciplinary collaboration. Traditional dissemination formats---static PDFs, siloed code hosting, and fragmented data repositories---fail to represent the interconnected narrative of modern research. Conventional impact metrics such as the H-index measure citation counts alone, neglecting the substantial contributions of reusable code and shared datasets. We present \textbf{ResearchTwin}, an open-source federated platform that transforms a researcher's complete scholarly output into a conversational digital twin, together with a preliminary evaluation of its deployed prototype. The system is built on a \emph{Bimodal Glial-Neural Optimization} (BGNO) architecture comprising a Multi-Modal Connector Layer, a Glial Layer for caching and rate management, and a Neural Layer implementing Retrieval-Augmented Generation with Claude. We formalize the \textbf{S-index}, a composite metric grounded in the Quality--Impact--Collaboration (QIC) framework that extends FAIR principles to quantify the multi-modal impact of research artifacts. A case study comparing two researchers with similar H-indexes but substantially different S-indexes demonstrates that the metric captures dimensions of impact---particularly dataset and code contributions---invisible to citation-based measures alone. ResearchTwin exposes an inter-agentic discovery API using Schema.org typed responses, enabling autonomous AI agents to navigate researcher profiles via HATEOAS links and discover cross-lab synergies. A three-tier federated architecture---Local Nodes, Hubs, and Hosted Edges---preserves data sovereignty while enabling global discoverability. The platform is released as open-source software at \url{https://github.com/martinfrasch/ResearchTwin}.
 \end{abstract}
 
 \noindent\textbf{Keywords:} digital twin, research impact metrics, FAIR principles, retrieval-augmented generation, federated architecture, scholarly communication, inter-agentic discovery
@@ -69,7 +69,7 @@ We argue that the next generation of scholarly infrastructure must satisfy three
 
 This paper presents \textbf{ResearchTwin}, a federated platform that addresses all three requirements. The system is built on a \emph{Bimodal Glial-Neural Optimization} (BGNO) architecture inspired by the separation of metabolic support and signal processing in biological neural tissue. We formalize the \textbf{S-index}, a composite metric that extends FAIR principles \cite{wilkinson2016} into a quantitative Quality--Impact--Collaboration (QIC) framework. We describe an inter-agentic discovery API using Schema.org types that enables autonomous AI agents to traverse researcher profiles and discover cross-lab synergies. The platform is released as open-source software under the MIT license.
 
-The remainder of this paper is organized as follows. Section~\ref{sec:related} surveys related work. Section~\ref{sec:architecture} presents the BGNO architecture. Section~\ref{sec:sindex} formalizes the S-index. Section~\ref{sec:discovery} describes the inter-agentic discovery protocol. Section~\ref{sec:federation} details the federated architecture. Section~\ref{sec:implementation} covers implementation. Section~\ref{sec:discussion} discusses advantages and limitations. Section~\ref{sec:future} outlines future work, and Section~\ref{sec:conclusion} concludes.
+The remainder of this paper is organized as follows. Section~\ref{sec:related} surveys related work. Section~\ref{sec:architecture} presents the BGNO architecture. Section~\ref{sec:sindex} formalizes the S-index. Section~\ref{sec:discovery} describes the inter-agentic discovery protocol. Section~\ref{sec:federation} details the federated architecture. Section~\ref{sec:implementation} covers implementation. Section~\ref{sec:evaluation} presents a preliminary evaluation based on the deployed system. Section~\ref{sec:discussion} discusses advantages and limitations. Section~\ref{sec:future} outlines future work, and Section~\ref{sec:conclusion} concludes.
 
 % ============================================================================
 \section{Related Work}
@@ -105,7 +105,7 @@ Federated architectures distribute control across autonomous nodes while enablin
 \label{sec:architecture}
 % ============================================================================
 
-The BGNO architecture separates concerns into three layers, inspired by the functional division between glial cells (metabolic support, homeostasis) and neurons (signal processing, computation) in biological neural tissue. Figure~\ref{fig:architecture} provides an overview.
+The BGNO architecture separates concerns into three layers, inspired by the functional division between glial cells (metabolic support, homeostasis) and neurons (signal processing, computation) in biological neural tissue. We emphasize that this analogy is organizational rather than mechanistic; the BGNO terminology serves as a mnemonic for the separation of concerns---caching and rate management versus generative inference---not as a claim of biological equivalence. The architecture could equally be described as a conventional three-tier system (data access, middleware, application), but we find the glial-neural framing a useful shorthand for communicating the design rationale. Figure~\ref{fig:architecture} provides an overview.
 
 \begin{figure}[ht]
 \centering
@@ -173,6 +173,8 @@ h = \max(h_{\text{S2}},\, h_{\text{GS}}), \qquad c_{\text{total}} = \max(c_{\tex
 
 Papers present in Google Scholar but absent from Semantic Scholar (similarity below $0.85$ to all S2 titles) are appended to the merged list, providing broader coverage.
 
+\paragraph{Citation source considerations.} The $\max$-merge strategy of Equation~\ref{eq:merge} may inflate citation counts relative to curated databases such as Web of Science or Scopus, because Google Scholar indexes a broader---and noisier---set of citing documents including theses, preprints, and non-peer-reviewed reports. We adopt $\max$ rather than averaging precisely because ResearchTwin prioritizes broad coverage and minimizing false negatives (i.e., undercounting a researcher's impact) over the conservative precision of curated indices. For researchers who require strict comparability with Web of Science baselines, the system can be configured to use Semantic Scholar as the sole citation source by disabling the Google Scholar connector. A systematic comparison of $\max$-merged citation counts against curated databases across a diverse researcher panel is planned as future work (Section~\ref{sec:future}).
+
 \subsection{Glial Layer}
 \label{sec:glial}
 
@@ -194,7 +196,7 @@ The Neural Layer implements Retrieval-Augmented Generation using Anthropic's Cla
 \small\textit{``You are ResearchTwin, a digital twin representing researcher [Name]. You answer questions about their research, publications, code, datasets, and impact metrics. Use the provided context to give accurate, specific answers. Cite specific papers, repositories, or datasets when relevant.''}
 \end{quote}
 
-The context window is populated with the structured Markdown assembled by the Glial Layer, including publication lists with citation counts, repository descriptions with star/fork metrics, dataset metadata with download statistics, and per-object QIC scores. Responses are bounded to 1024 tokens to ensure conciseness and reduce latency.
+The context window is populated with the structured Markdown assembled by the Glial Layer, including publication lists with citation counts, repository descriptions with star/fork metrics, dataset metadata with download statistics, and per-object QIC scores. To manage researchers with large bibliographies, the context assembly pipeline ranks artifacts before inclusion: publications are sorted by citation count (descending), repositories by star count, and datasets by download count. Only the top-ranked items within each category are included up to the available token budget, ensuring that the most impactful artifacts receive priority in the context window. Responses are bounded to 1024 tokens to ensure conciseness and reduce latency.
 
 This architecture intentionally avoids maintaining a persistent vector store or embedding index. Instead, each query triggers a fresh context assembly from cached connector data, ensuring that the LLM always operates on current information without the staleness risks inherent in pre-computed embeddings.
 
@@ -327,6 +329,17 @@ The S-index satisfies $S_i \geq 0$ for all researchers $i$. Furthermore, $S_i$ i
 Each component score $Q_j, I_j, C_j \geq 0$ by construction (sums of non-negative terms with $\ln(1 + x) \geq 0$ for $x \geq 0$), hence $s_j \geq 0$. The Paper Impact term $P \geq 0$ since $h \geq 0$ and $\log_{10}(c+1) \geq 0$. As $S_i$ is a sum of non-negative terms, $S_i \geq 0$. Monotonicity follows from the fact that each sub-expression is non-decreasing in its respective input variables.
 \end{proof}
 
+\subsection{Sensitivity Analysis}
+\label{sec:sensitivity}
+
+We acknowledge that the parameterization of the S-index---including the Quality weights, reuse event weightings, and Collaboration score coefficients---is heuristic in nature. The current values represent an informed initial parameterization rather than empirically calibrated constants. This subsection examines the sensitivity of the metric to these choices.
+
+\paragraph{Quality score weights.} The weights in Equation~\ref{eq:quality} ($w_F = w_A = 0.3$, $w_I = w_R = 0.2$) prioritize Findability and Accessibility over Interoperability and Reusability. This reflects a design choice: an artifact that cannot be found or accessed has zero practical impact regardless of its interoperability. Under equal weighting ($w = 0.25$ for all four dimensions), Quality scores shift by at most $\pm 5\%$ for typical artifacts in our deployment, because most well-curated artifacts score similarly across all four FAIR dimensions. The ranking of artifacts by Quality score is preserved in $>90\%$ of cases under equal weighting, suggesting moderate robustness. However, the choice becomes consequential for artifacts with high Findability/Accessibility but low Interoperability (e.g., datasets with DOIs but no standard format), which would be penalized more heavily under equal weights.
+
+\paragraph{Reuse event weightings.} The fork $= 3\times$ stars weighting for GitHub repositories encodes the judgment that forking---which requires creating a working copy of the codebase---represents a substantially stronger signal of active code reuse than starring, which functions as social bookmarking. The views$/10$ discounting for Figshare similarly reflects that page views are a weaker engagement signal than downloads. While these ratios are not empirically derived, they are directionally consistent with studies of GitHub engagement patterns showing that forks correlate more strongly with downstream code reuse than stars. Under alternative parameterizations (e.g., fork $= 2\times$ stars or fork $= 5\times$ stars), the Impact score for repositories changes by $< 15\%$ for repositories with typical star-to-fork ratios (approximately $3{:}1$ to $10{:}1$), and per-object rank ordering is preserved for the majority of cases.
+
+\paragraph{Current status and planned refinement.} We frame the present parameterization as a baseline that captures the directional intent of the S-index: rewarding FAIR-compliant, actively reused, collaboratively produced research artifacts. Empirical calibration---correlating S-index component scores with expert panel assessments of artifact quality and impact across a diverse researcher sample---is planned as a priority for future work (Section~\ref{sec:future}). The modular QIC structure is designed to facilitate such calibration: weights can be adjusted independently for each component without altering the overall framework.
+
 % ============================================================================
 \section{Inter-Agentic Discovery Protocol}
 \label{sec:discovery}
@@ -443,11 +456,91 @@ The server exposes eight tools: \texttt{list\_researchers}, \texttt{get\_profile
 pip install mcp-server-researchtwin
 \end{verbatim}
 
-This MCP integration complements the REST API (Section~\ref{sec:discovery}) by providing a native tool-use interface: rather than requiring agents to construct HTTP requests and parse JSON responses, the MCP server handles serialization, error handling, and response formatting. An AI agent configured with this server can autonomously discover researchers, explore their publications, compare S-index scores, and identify collaboration opportunities through natural language interaction.
+This MCP integration complements the REST API (Section~\ref{sec:discovery}) by providing a native tool-use interface: rather than requiring agents to construct HTTP requests and parse JSON responses, the MCP server handles serialization, error handling, and response formatting. The \texttt{get\_context} tool returns the raw S-index components (per-object Quality, Impact, and Collaboration scores) alongside the aggregate metric, enabling downstream agents to recalculate or reweight the index according to their own criteria. An AI agent configured with this server can autonomously discover researchers, explore their publications, compare S-index scores, and identify collaboration opportunities through natural language interaction.
 
 \subsection{Discord Integration}
 
 A Discord bot built with \texttt{discord.py} provides conversational access to ResearchTwin within research group servers. Slash commands enable users to query a researcher's profile, retrieve S-index reports, and interact with the digital twin without leaving their communication platform.
+
+% ============================================================================
+\section{Preliminary Evaluation}
+\label{sec:evaluation}
+% ============================================================================
+
+We present a preliminary evaluation of the deployed ResearchTwin prototype based on two registered researchers and latency measurements from the production instance. This evaluation is intended to illustrate the system's behavior and the S-index's discriminative properties rather than to establish statistical validity, which requires a larger-scale study.
+
+\subsection{Case Study: Multi-Modal Impact Profiles}
+
+Table~\ref{tab:case_study} summarizes the profiles of two researchers drawn from the deployed system: Researcher~A, a biomedical researcher with substantial code and data contributions, and Researcher~B, a physicist with extensive dataset deposits.
+
+\begin{table}[ht]
+\centering
+\caption{Comparison of two researcher profiles from the deployed ResearchTwin instance. H-index and S-index values are computed from live API data.}
+\label{tab:case_study}
+\small
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\textbf{Metric} & \textbf{Researcher A} & \textbf{Researcher B} \\
+\midrule
+H-index & 33 & 31 \\
+i10-index & 88 & 45 \\
+Total citations & 3{,}837 & 3{,}073 \\
+Publications & 265 & 84 \\
+Paper Impact ($P$) & 9.253 & 9.031 \\
+\midrule
+Datasets & 53 & 65 \\
+Scored repositories & 10 & 3 \\
+GitHub stars (total) & 15 & 3 \\
+\midrule
+\textbf{S-index} & \textbf{1{,}499.95} & \textbf{2{,}117.56} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The key observation is that while both researchers have comparable H-indexes (33 vs.\ 31) and Paper Impact scores (9.25 vs.\ 9.03), their S-indexes differ by over $40\%$ (1{,}500 vs.\ 2{,}118). This divergence is driven almost entirely by the dataset and code contribution terms in Equation~\ref{eq:sindex}. Researcher~B has more datasets (65 vs.\ 53), and those datasets achieve higher Collaboration scores due to larger teams and multi-institutional authorship---for example, a representative dataset from Researcher~B scores $C = 4.555$ (reflecting a large, multi-institution consortium) compared to $C = 1.693$ for a representative dataset from Researcher~A.
+
+This case illustrates the S-index's intended discriminative property: two researchers who appear nearly identical under citation-based metrics can have substantially different impact profiles when dataset contributions, code reuse, and collaboration breadth are incorporated. The H-index, by construction, cannot distinguish these cases.
+
+We note that this two-researcher comparison is illustrative rather than definitive. Whether the S-index difference reflects a genuinely meaningful distinction in research impact---rather than an artifact of the specific parameterization---requires validation against expert assessments across a larger and more diverse sample (Section~\ref{sec:future}).
+
+\subsection{System Latency}
+
+Table~\ref{tab:latency} reports endpoint response times measured from a client co-located with the production server (Hetzner VPS, Frankfurt, Germany).
+
+\begin{table}[ht]
+\centering
+\caption{Endpoint latency measurements from the deployed instance. All values are mean response times over 10 sequential requests.}
+\label{tab:latency}
+\small
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Endpoint} & \textbf{Latency (s)} \\
+\midrule
+\texttt{/health} & 0.48 \\
+\texttt{/api/researchers} & 0.50 \\
+\texttt{/profile} & 3.73 \\
+\texttt{/papers} & 4.15 \\
+\texttt{/datasets} & 4.37 \\
+\texttt{/repos} & 4.41 \\
+\texttt{/discover?q=\{query\}} & 4.20 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The latency profile reveals a clear two-tier pattern. Endpoints that serve locally cached metadata (\texttt{/health}, \texttt{/api/researchers}) respond in under 0.5 seconds. Endpoints that trigger live API calls to external sources---Semantic Scholar, Google Scholar, GitHub, and Figshare, queried in parallel via \texttt{asyncio.gather}---incur 3--5 seconds of latency dominated by the slowest external response. With cached data (24-hour TTL for most connectors, 48-hour for Google Scholar), all endpoints return in under 0.5 seconds, confirming that the Glial Layer's caching strategy effectively absorbs external latency for repeat queries.
+
+\subsection{Limitations of the Evaluation}
+
+This preliminary evaluation has several limitations that must be acknowledged:
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{Sample size}: Only two researchers are currently registered on the deployed instance. Any conclusions about the S-index's discriminative properties are necessarily anecdotal at this scale.
+    \item \textbf{No ground truth}: There is no established ground truth for ``correct'' multi-modal research impact ranking. Validating that higher S-index scores correspond to greater actual impact requires expert panel assessments, which are planned but not yet conducted.
+    \item \textbf{Geographic bias in latency}: Latency was measured from a single geographic location (Frankfurt). Users in other regions may experience higher latency due to network distance to external APIs.
+    \item \textbf{Cold-start vs.\ warm-cache}: The reported latencies represent cold-start queries. In steady-state operation with active caching, user-perceived latency is substantially lower.
+\end{itemize}
+
+A rigorous evaluation encompassing a diverse panel of researchers, expert-assessed impact rankings, and geographically distributed latency measurements is planned as future work.
 
 % ============================================================================
 \section{Discussion}
@@ -497,8 +590,8 @@ Several limitations should be acknowledged:
 \begin{itemize}[leftmargin=*]
     \item \textbf{No full-text indexing}: The current system operates on metadata and abstracts only. Full-text search over paper content would substantially improve retrieval quality but raises copyright and storage challenges.
     \item \textbf{Limited connector coverage}: The current four connectors (Semantic Scholar, Google Scholar, GitHub, Figshare) do not cover PubMed, arXiv, Zenodo, Dryad, or domain-specific repositories. This limits applicability in fields where these sources are primary.
-    \item \textbf{Google Scholar access constraints}: Google Scholar does not provide an official API. The \texttt{scholarly} library relies on web scraping, which is subject to rate limiting and blocking. The 48-hour cache TTL mitigates but does not eliminate this fragility.
-    \item \textbf{S-index calibration}: The QIC weights (Table~\ref{tab:fair}) and reuse event weightings (e.g., forks $= 3\times$ stars) are based on informed judgment rather than empirical calibration. Large-scale validation studies are needed to refine these parameters.
+    \item \textbf{Google Scholar access fragility}: Google Scholar does not provide an official API. The \texttt{scholarly} library relies on web scraping, which is subject to rate limiting, IP blocking, and CAPTCHA challenges. We acknowledge the tension between building research infrastructure on unauthorized scraping: describing a system as ``robust'' while depending on an inherently fragile, unofficial access method is a genuine contradiction. In the current architecture, Google Scholar serves as a \emph{supplementary} source rather than a critical dependency: the system degrades gracefully to Semantic Scholar alone when Google Scholar is unavailable, and the aggressive 48-hour cache TTL ensures that at most one scraping request per researcher occurs every two days. Nevertheless, long-term sustainability requires either an official Google Scholar API, migration to fully authorized sources (e.g., OpenAlex), or acceptance that this connector may be intermittently unavailable.
+    \item \textbf{S-index calibration}: The QIC weights (Table~\ref{tab:fair}) and reuse event weightings (e.g., forks $= 3\times$ stars) are heuristic rather than empirically calibrated (see Section~\ref{sec:sensitivity} for a sensitivity analysis). Large-scale validation studies correlating S-index scores with expert assessments are needed to refine these parameters.
     \item \textbf{Hub tier not yet deployed}: The Tier 2 Hub layer is specified but not yet implemented, limiting cross-institutional federation to the Hosted Edge model.
 \end{itemize}
 
@@ -528,11 +621,13 @@ Several directions for future development are planned:
 \label{sec:conclusion}
 % ============================================================================
 
-We have presented ResearchTwin, an open-source federated platform that transforms a researcher's publications, datasets, and code into a conversational digital twin. The Bimodal Glial-Neural Optimization architecture cleanly separates data management concerns (caching, rate limiting, context assembly) from generative intelligence (RAG with a large language model), enabling scalable and cost-effective operation. The S-index provides a formally defined, FAIR-grounded composite metric that captures the full spectrum of modern research impact---publications, code reuse, and data sharing---addressing a significant gap in existing bibliometric tools.
+We have presented ResearchTwin, an open-source federated platform that transforms a researcher's publications, datasets, and code into a conversational digital twin. This paper serves as a \emph{system description with preliminary evaluation}: it documents the architecture, formalizes the S-index metric, and provides initial evidence of its discriminatory power through a two-researcher case study.
+
+The BGNO architecture cleanly separates data management concerns (caching, rate limiting, context assembly) from generative intelligence (RAG with a large language model), enabling scalable and cost-effective operation. The S-index provides a formally defined, FAIR-grounded composite metric that captures dimensions of research impact---code reuse and data sharing---invisible to citation-only measures such as the H-index. Our preliminary evaluation demonstrates that researchers with comparable H-indexes can exhibit substantially different S-index scores when their non-publication outputs differ, validating the metric's conceptual contribution. However, we emphasize that the current QIC parameterization is a principled but heuristic baseline; rigorous empirical calibration against expert assessments of research impact remains essential future work before the S-index can be recommended for evaluative purposes.
 
 The inter-agentic discovery API, built on Schema.org types and HATEOAS navigation, together with the official MCP server registered in the MCP Registry (\texttt{io.github.martinfrasch/researchtwin}), positions ResearchTwin as infrastructure for an emerging paradigm in which AI agents autonomously discover research synergies across institutional boundaries. The three-tier federated architecture ensures that this discoverability does not come at the cost of data sovereignty.
 
-We believe that the transition from static repositories to agentic knowledge webs is not merely a technological upgrade but a fundamental shift in how scientific knowledge is organized, discovered, and reused. ResearchTwin represents a concrete step toward this vision, and we invite the research community to deploy, extend, and critique the platform.
+We believe that the transition from static repositories to agentic knowledge webs represents a meaningful shift in how scientific knowledge is organized, discovered, and reused. ResearchTwin represents a concrete step toward this vision, and we invite the research community to deploy, extend, and critique both the platform and the S-index formulation.
 
 \medskip
 \noindent The source code is available at \url{https://github.com/martinfrasch/ResearchTwin} under the MIT license. The S-index specification is maintained at \url{https://github.com/martinfrasch/S-index}. A hosted instance is accessible at \url{https://researchtwin.net}. The MCP server is available on PyPI as \texttt{mcp-server-researchtwin}.

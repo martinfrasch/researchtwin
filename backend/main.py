@@ -1,6 +1,9 @@
 import asyncio
+import logging
 import os
 import re
+import time
+from collections import defaultdict
 from contextlib import asynccontextmanager
 from difflib import SequenceMatcher
 
@@ -15,10 +18,47 @@ from models import RegisterRequest, RegisterResponse, RequestUpdateRequest, Prof
 from qic_index import compute_researcher_qic
 from rag import build_context, chat_with_context
 
+logger = logging.getLogger("researchtwin")
+logger.setLevel(logging.INFO)
+
+
+# ---------------------------------------------------------------------------
+# In-memory rate limiter (defense-in-depth behind nginx)
+# ---------------------------------------------------------------------------
+
+class RateLimiter:
+    """Simple sliding-window rate limiter. No external dependencies."""
+
+    def __init__(self, max_requests: int, window_seconds: int):
+        self.max_requests = max_requests
+        self.window = window_seconds
+        self._hits: dict[str, list[float]] = defaultdict(list)
+
+    def is_allowed(self, key: str) -> bool:
+        now = time.time()
+        cutoff = now - self.window
+        hits = self._hits[key] = [t for t in self._hits[key] if t > cutoff]
+        if len(hits) >= self.max_requests:
+            return False
+        hits.append(now)
+        return True
+
+
+# Per-IP: 30 chat requests per hour
+_chat_ip_limiter = RateLimiter(max_requests=30, window_seconds=3600)
+# Global: 500 chat requests per day (cost cap ~$15/day)
+_chat_daily_limiter = RateLimiter(max_requests=500, window_seconds=86400)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     database.init_db()
+    # Attach to uvicorn's handler (available now that uvicorn is running)
+    uvicorn_logger = logging.getLogger("uvicorn")
+    for h in uvicorn_logger.handlers:
+        logger.addHandler(h)
+    logger.info("ResearchTwin rate limits active: %d/hr per IP, %d/day global",
+                _chat_ip_limiter.max_requests, _chat_daily_limiter.max_requests)
     yield
     database.close_db()
 
@@ -232,7 +272,19 @@ def health():
 
 
 @app.post("/chat", response_model=ChatResponse)
-async def chat(req: ChatRequest):
+async def chat(req: ChatRequest, request: Request):
+    client_ip = request.headers.get("x-real-ip", request.client.host if request.client else "unknown")
+
+    # Global daily budget (prevents runaway API costs)
+    if not _chat_daily_limiter.is_allowed("__global__"):
+        logger.warning("chat DAILY_LIMIT_HIT ip=%s", client_ip)
+        raise HTTPException(status_code=503, detail="Daily chat limit reached. Try again tomorrow.")
+
+    # Per-IP hourly limit
+    if not _chat_ip_limiter.is_allowed(client_ip):
+        logger.warning("chat RATE_LIMITED ip=%s slug=%s", client_ip, req.researcher_slug)
+        raise HTTPException(status_code=429, detail="Too many chat requests. Try again later.")
+
     try:
         researcher = researchers.get_researcher(req.researcher_slug)
     except KeyError:
@@ -241,13 +293,19 @@ async def chat(req: ChatRequest):
     if not os.environ.get("ANTHROPIC_API_KEY"):
         raise HTTPException(status_code=503, detail="Chat unavailable — no API key configured")
 
+    logger.info("chat ip=%s slug=%s msg_len=%d", client_ip, req.researcher_slug, len(req.message))
+
     try:
         s2_data, gh_data, fs_data = await _fetch_all(researcher)
         qic = compute_researcher_qic(fs_data, gh_data, s2_data)
         context = build_context(researcher["display_name"], s2_data, gh_data, fs_data, qic)
         reply = await chat_with_context(context, req.message, researcher["display_name"])
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Pipeline error: {type(e).__name__}")
+    except asyncio.TimeoutError:
+        logger.error("chat TIMEOUT ip=%s slug=%s", client_ip, req.researcher_slug)
+        raise HTTPException(status_code=504, detail="Chat request timed out")
+    except Exception:
+        logger.exception("chat PIPELINE_ERROR ip=%s slug=%s", client_ip, req.researcher_slug)
+        raise HTTPException(status_code=502, detail="Pipeline error")
 
     return ChatResponse(reply=reply, researcher_slug=req.researcher_slug)
 

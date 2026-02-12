@@ -5,9 +5,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check for secrets
+      - name: Check for hardcoded secrets
         run: |
-          git grep -i "api_key.*=" && exit 1 || true
-          git grep -i "token.*=" && exit 1 || true
-          git grep -i "password.*=" && exit 1 || true
+          FOUND=0
+
+          # Anthropic API keys (sk-ant-api03-...)
+          if git grep -lP 'sk-ant-api\d{2}-[A-Za-z0-9_-]{20,}' -- ':!.github/'; then
+            echo "::error::Found Anthropic API key"
+            FOUND=1
+          fi
+
+          # Generic long API keys assigned to variables (KEY = "actual-long-value")
+          if git grep -nP '(?:api_key|token|password|secret)\s*=\s*["\x27][A-Za-z0-9_-]{30,}["\x27]' -- ':!.github/' ':!*.example' ':!*.md'; then
+            echo "::error::Found possible hardcoded secret"
+            FOUND=1
+          fi
+
+          # AWS keys
+          if git grep -lP 'AKIA[0-9A-Z]{16}' -- ':!.github/'; then
+            echo "::error::Found AWS access key"
+            FOUND=1
+          fi
+
+          # Private keys
+          if git grep -l 'BEGIN.*PRIVATE KEY' -- ':!.github/'; then
+            echo "::error::Found private key"
+            FOUND=1
+          fi
+
+          # Discord bot tokens (base64-ish with dots)
+          if git grep -lP '[MN][A-Za-z0-9]{23,}\.[A-Za-z0-9_-]{6}\.[A-Za-z0-9_-]{27,}' -- ':!.github/' ':!*.md'; then
+            echo "::error::Found Discord bot token"
+            FOUND=1
+          fi
+
+          if [ "$FOUND" -eq 1 ]; then
+            exit 1
+          fi
+
           echo "No hardcoded secrets found"

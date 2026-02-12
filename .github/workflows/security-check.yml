@@ -1,0 +1,13 @@
+name: Security Check
+on: [push, pull_request]
+jobs:
+  secrets-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for secrets
+        run: |
+          git grep -i "api_key.*=" && exit 1 || true
+          git grep -i "token.*=" && exit 1 || true
+          git grep -i "password.*=" && exit 1 || true
+          echo "No hardcoded secrets found"

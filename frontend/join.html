@@ -10,24 +10,18 @@
 
         .header { text-align: center; padding: 2rem 1rem 1rem; }
         .header h1 { font-size: 2.2rem; margin-bottom: 0.3rem; background: linear-gradient(135deg, #3498db, #2ecc71); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-        .header .tagline { font-size: 0.95rem; color: #8899aa; margin-bottom: 0.5rem; }
+        .header .tagline { font-size: 1rem; color: #8899aa; margin-bottom: 0.5rem; }
         .back-link { display: inline-block; font-size: 0.8rem; color: #3498db; text-decoration: none; margin-bottom: 1rem; }
         .back-link:hover { text-decoration: underline; }
 
-        .container { width: 100%; max-width: 580px; padding: 0 1.5rem 3rem; }
+        .container { width: 100%; max-width: 560px; padding: 0 1.5rem 3rem; }
 
-        /* Tier selector */
-        .tier-tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
-        .tier-tab {
-            flex: 1; padding: 0.75rem 0.5rem; border: 1px solid #3498db33; border-radius: 8px;
-            background: transparent; color: #8899aa; cursor: pointer; text-align: center;
-            font-family: inherit; font-size: 0.82rem; transition: all 0.2s; position: relative;
-        }
-        .tier-tab:hover { border-color: #3498db66; color: #e0e0e0; }
-        .tier-tab.active { border-color: #3498db; color: #e0e0e0; background: #131825; }
-        .tier-tab .tier-name { font-weight: 600; display: block; margin-bottom: 0.15rem; }
-        .tier-tab .tier-desc { font-size: 0.7rem; opacity: 0.7; }
-        .badge-soon { position: absolute; top: -6px; right: -6px; background: #e67e22; color: #fff; font-size: 0.55rem; padding: 0.1rem 0.4rem; border-radius: 0.6rem; font-weight: 600; }
+        /* Value proposition */
+        .value-props { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 2rem; }
+        .value-prop { text-align: center; padding: 1rem 0.5rem; border: 1px solid #ffffff0a; border-radius: 8px; background: #131825; }
+        .value-prop .icon { font-size: 1.4rem; margin-bottom: 0.3rem; }
+        .value-prop .title { font-size: 0.78rem; font-weight: 600; color: #e0e0e0; margin-bottom: 0.2rem; }
+        .value-prop .desc { font-size: 0.68rem; color: #8899aa; line-height: 1.4; }
 
         /* Form */
         .form-section { margin-bottom: 1.5rem; }
@@ -43,9 +37,13 @@
         .field input:focus { outline: none; border-color: #3498db; }
         .field input::placeholder { color: #556677; }
         .field .helper { font-size: 0.68rem; color: #556677; margin-top: 0.2rem; }
+        .field .helper a { color: #3498db; text-decoration: none; }
+        .field .helper a:hover { text-decoration: underline; }
         .field.error input { border-color: #e74c3c; }
         .field.error .helper { color: #e74c3c; }
         .honeypot { position: absolute; left: -9999px; opacity: 0; height: 0; }
+
+        .ids-note { font-size: 0.75rem; color: #8899aa; line-height: 1.5; margin-bottom: 0.75rem; }
 
         .submit-btn {
             width: 100%; padding: 0.75rem; border: none; border-radius: 8px; font-size: 0.95rem;
@@ -56,21 +54,6 @@
         .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .error-msg { background: #e74c3c22; border: 1px solid #e74c3c44; color: #e74c3c; border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 0.82rem; margin-bottom: 1rem; display: none; }
-
-        /* Tier 1 instructions */
-        .tier1-instructions {
-            background: #131825; border: 1px solid #3498db33; border-radius: 8px; padding: 1.25rem;
-            font-size: 0.85rem; line-height: 1.6;
-        }
-        .tier1-instructions h3 { font-size: 0.9rem; color: #e0e0e0; margin-bottom: 0.75rem; }
-        .tier1-instructions .step { margin-bottom: 0.5rem; }
-        .tier1-instructions .step-num { color: #3498db; font-weight: 600; margin-right: 0.3rem; }
-        .tier1-instructions code {
-            display: block; background: #0a0e17; border: 1px solid #ffffff0a; border-radius: 4px;
-            padding: 0.4rem 0.6rem; font-family: 'SF Mono', Consolas, monospace; font-size: 0.78rem;
-            color: #2ecc71; margin: 0.3rem 0; overflow-x: auto;
-        }
-        .tier1-instructions .prereqs { color: #8899aa; font-size: 0.75rem; margin-top: 0.75rem; border-top: 1px solid #ffffff0a; padding-top: 0.5rem; }
 
         /* Success screen */
         .success { display: none; text-align: center; }
@@ -94,9 +77,36 @@
             color: #2ecc71; resize: none; height: 3.5rem;
         }
 
+        /* Self-host section */
+        .selfhost {
+            margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid #ffffff0a;
+        }
+        .selfhost-toggle {
+            background: none; border: none; color: #556677; cursor: pointer;
+            font-family: inherit; font-size: 0.78rem; display: flex; align-items: center; gap: 0.3rem;
+        }
+        .selfhost-toggle:hover { color: #8899aa; }
+        .selfhost-toggle .arrow { transition: transform 0.2s; display: inline-block; }
+        .selfhost-toggle .arrow.open { transform: rotate(90deg); }
+        .selfhost-content { display: none; margin-top: 1rem; }
+        .selfhost-content.visible { display: block; }
+        .selfhost-instructions {
+            background: #131825; border: 1px solid #3498db33; border-radius: 8px; padding: 1.25rem;
+            font-size: 0.82rem; line-height: 1.6;
+        }
+        .selfhost-instructions h4 { font-size: 0.88rem; color: #e0e0e0; margin-bottom: 0.75rem; }
+        .selfhost-instructions .step { margin-bottom: 0.4rem; }
+        .selfhost-instructions .step-num { color: #3498db; font-weight: 600; margin-right: 0.3rem; }
+        .selfhost-instructions code {
+            display: block; background: #0a0e17; border: 1px solid #ffffff0a; border-radius: 4px;
+            padding: 0.35rem 0.6rem; font-family: 'SF Mono', Consolas, monospace; font-size: 0.75rem;
+            color: #2ecc71; margin: 0.25rem 0; overflow-x: auto;
+        }
+        .selfhost-instructions .prereqs { color: #8899aa; font-size: 0.72rem; margin-top: 0.75rem; border-top: 1px solid #ffffff0a; padding-top: 0.5rem; }
+
         /* How-to embed section */
         .howto {
-            margin-top: 3rem; padding-top: 2rem; border-top: 1px solid #ffffff0a;
+            margin-top: 2.5rem; padding-top: 2rem; border-top: 1px solid #ffffff0a;
         }
         .howto h2 {
             font-size: 1.3rem; margin-bottom: 0.3rem;
@@ -143,50 +153,33 @@
     </div>
 
     <div class="container">
-        <!-- Tier selector -->
-        <div class="tier-tabs">
-            <button class="tier-tab" data-tier="1" onclick="selectTier(1)">
-                <span class="tier-name">Tier 1: Local Node</span>
-                <span class="tier-desc">Run your own instance</span>
-            </button>
-            <button class="tier-tab active" data-tier="3" onclick="selectTier(3)">
-                <span class="tier-name">Tier 3: Hosted</span>
-                <span class="tier-desc">Zero setup on researchtwin.net</span>
-            </button>
-            <button class="tier-tab" data-tier="2" onclick="selectTier(2)">
-                <span class="tier-name">Tier 2: Hub</span>
-                <span class="tier-desc">Aggregate researchers</span>
-                <span class="badge-soon">Soon</span>
-            </button>
-        </div>
-
-        <!-- Tier 1: Local Node instructions -->
-        <div id="tier1-content" style="display:none">
-            <div class="tier1-instructions">
-                <h3>Run Your Own ResearchTwin Node</h3>
-                <div class="step"><span class="step-num">1.</span> Clone the repository</div>
-                <code>git clone https://github.com/martinfrasch/researchtwin.git && cd researchtwin</code>
-                <div class="step"><span class="step-num">2.</span> Install dependencies</div>
-                <code>pip install -r backend/requirements.txt</code>
-                <div class="step"><span class="step-num">3.</span> Configure your profile</div>
-                <code>cp node_config.json.example node_config.json && nano node_config.json</code>
-                <div class="step"><span class="step-num">4.</span> Set your Anthropic API key (for chat)</div>
-                <code>export ANTHROPIC_API_KEY=sk-ant-...</code>
-                <div class="step"><span class="step-num">5.</span> Launch your node</div>
-                <code>python run_node.py --config node_config.json</code>
-                <div class="step"><span class="step-num">6.</span> (Optional) Register with the hub for discoverability</div>
-                <code>python run_node.py --config node_config.json --register-hub</code>
-                <p class="prereqs">Prerequisites: Python 3.10+, Anthropic API key (for chat feature). Connector APIs (Semantic Scholar, GitHub, Figshare) work without keys.</p>
+        <!-- Value proposition -->
+        <div class="value-props">
+            <div class="value-prop">
+                <div class="icon">&#x1f4ca;</div>
+                <div class="title">S-Index Score</div>
+                <div class="desc">Quality, Impact &amp; Collaboration across all your outputs</div>
+            </div>
+            <div class="value-prop">
+                <div class="icon">&#x1f578;&#xfe0f;</div>
+                <div class="desc" style="font-size:0.68rem;">
+                <div class="title">Knowledge Graph</div>
+                Interactive visualization of your papers, code &amp; datasets</div>
+            </div>
+            <div class="value-prop">
+                <div class="icon">&#x1f916;</div>
+                <div class="title">AI Discovery</div>
+                <div class="desc">Machine-readable API for agent-to-agent research discovery</div>
             </div>
         </div>
 
-        <!-- Tier 3: Registration form -->
-        <div id="tier3-content">
+        <!-- Registration form -->
+        <div id="form-content">
             <div class="error-msg" id="error-msg"></div>
 
             <form id="register-form" onsubmit="handleSubmit(event)">
                 <div class="form-section">
-                    <h3>Your Info</h3>
+                    <h3>About You</h3>
                     <div class="field">
                         <label>Full Name <span class="req">*</span></label>
                         <input type="text" name="name" required minlength="2" maxlength="100" placeholder="Jane Doe">
@@ -194,6 +187,7 @@
                     <div class="field">
                         <label>Email <span class="req">*</span></label>
                         <input type="email" name="email" required maxlength="254" placeholder="jane@university.edu">
+                        <div class="helper">Used for profile updates only. Never shared.</div>
                     </div>
                     <!-- Honeypot -->
                     <div class="honeypot" aria-hidden="true">
@@ -203,30 +197,32 @@
                 </div>
 
                 <div class="form-section">
-                    <h3>Research Identifiers (recommended)</h3>
-                    <p style="font-size:0.75rem; color:#e67e22; margin-bottom:0.75rem; line-height:1.5;">Providing your IDs now gives the best results. The S-Index and data connectors rely on these to fetch your publications, code, and datasets. You can <a href="/update.html" style="color:#3498db;">update them later</a>, but your twin works best with IDs from the start.</p>
+                    <h3>Connect Your Research Accounts</h3>
+                    <p class="ids-note">These IDs let us fetch your publications, code, and datasets. Add what you have now; you can <a href="/update.html" style="color:#3498db;">update later</a>.</p>
                     <div class="field">
                         <label>Semantic Scholar ID</label>
                         <input type="text" name="semantic_scholar_id" maxlength="20" placeholder="e.g. 4019392">
-                        <div class="helper">Find yours at semanticscholar.org/me</div>
+                        <div class="helper"><a href="https://www.semanticscholar.org/me" target="_blank">Find your ID</a> &mdash; it's the number in your profile URL</div>
                     </div>
                     <div class="field">
                         <label>Google Scholar ID</label>
                         <input type="text" name="google_scholar_id" maxlength="20" placeholder="e.g. 3lacmuYAAAAJ">
-                        <div class="helper">The string after user= in your Scholar profile URL</div>
+                        <div class="helper">The string after <code style="display:inline; background:#131825; padding:0.1rem 0.3rem; border-radius:3px; font-size:0.72rem; color:#e67e22;">user=</code> in your <a href="https://scholar.google.com/" target="_blank">Scholar profile URL</a></div>
                     </div>
                     <div class="field">
                         <label>GitHub Username</label>
                         <input type="text" name="github_username" maxlength="39" placeholder="e.g. janedoe">
+                        <div class="helper">Your GitHub handle (we'll pull public repos)</div>
                     </div>
                     <div class="field">
                         <label>Figshare Author Name</label>
                         <input type="text" name="figshare_search_name" maxlength="100" placeholder="e.g. Jane Doe">
-                        <div class="helper">Used to search for your datasets on Figshare</div>
+                        <div class="helper">Only if you have datasets on <a href="https://figshare.com/" target="_blank">Figshare</a>. Leave blank otherwise.</div>
                     </div>
                     <div class="field">
                         <label>ORCID</label>
                         <input type="text" name="orcid" maxlength="25" placeholder="e.g. 0000-0003-3159-6321">
+                        <div class="helper"><a href="https://orcid.org/" target="_blank">orcid.org</a> &mdash; your persistent researcher identifier</div>
                     </div>
                 </div>
 
@@ -234,25 +230,10 @@
             </form>
         </div>
 
-        <!-- Tier 2: Coming soon -->
-        <div id="tier2-content" style="display:none">
-            <div class="tier1-instructions">
-                <h3>Hub Federation — Coming Soon</h3>
-                <p style="color:#8899aa; line-height:1.6">
-                    Hubs aggregate multiple researcher nodes into a lab-level discovery endpoint.
-                    Think of it as a department or lab page that federates the digital twins of all its members.
-                </p>
-                <p style="color:#8899aa; line-height:1.6; margin-top:0.75rem">
-                    Want early access? Register as a Hosted researcher (Tier 3) first, then
-                    <a href="mailto:martin@researchtwin.net" style="color:#3498db">contact us</a> about hub setup.
-                </p>
-            </div>
-        </div>
-
         <!-- Success screen -->
         <div class="success" id="success">
             <h2>Your ResearchTwin is Live!</h2>
-            <p style="color:#8899aa; margin-bottom:0.5rem">Your slug:</p>
+            <p style="color:#8899aa; margin-bottom:0.5rem">Your researcher slug:</p>
             <div class="slug-display" id="slug-display"></div>
             <br>
             <a href="/" class="view-link" id="view-link">View Your Digital Twin &rarr;</a>
@@ -263,19 +244,45 @@
             </div>
         </div>
 
-        <!-- How to embed section (always visible) -->
+        <!-- Self-host option (collapsed by default) -->
+        <div class="selfhost">
+            <button class="selfhost-toggle" onclick="toggleSelfhost()">
+                <span class="arrow" id="selfhost-arrow">&#x25b6;</span>
+                Want to self-host your own instance instead?
+            </button>
+            <div class="selfhost-content" id="selfhost-content">
+                <div class="selfhost-instructions">
+                    <h4>Run Your Own ResearchTwin Node</h4>
+                    <div class="step"><span class="step-num">1.</span> Clone the repository</div>
+                    <code>git clone https://github.com/martinfrasch/researchtwin.git && cd researchtwin</code>
+                    <div class="step"><span class="step-num">2.</span> Install dependencies</div>
+                    <code>pip install -r backend/requirements.txt</code>
+                    <div class="step"><span class="step-num">3.</span> Configure your profile</div>
+                    <code>cp node_config.json.example node_config.json && nano node_config.json</code>
+                    <div class="step"><span class="step-num">4.</span> Set your Anthropic API key (for chat)</div>
+                    <code>export ANTHROPIC_API_KEY=sk-ant-...</code>
+                    <div class="step"><span class="step-num">5.</span> Launch your node</div>
+                    <code>python run_node.py --config node_config.json</code>
+                    <p class="prereqs">Prerequisites: Python 3.10+, Anthropic API key (for chat). All data connectors (Semantic Scholar, GitHub, Figshare) work without keys.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- How to embed section -->
         <div class="howto" id="howto">
             <h2>Embed Your S-Index</h2>
             <p class="subtitle">Show your S-Index on your lab website, Google Sites page, or personal homepage.</p>
 
-            <div class="preview-frame">
-                <iframe src="/embed.html?slug=martin-frasch" width="100%" height="180" style="border:none;" loading="lazy"></iframe>
+            <div class="preview-frame" id="embed-preview">
+                <div style="height:180px; display:flex; align-items:center; justify-content:center; color:#556677; font-size:0.82rem;">
+                    Your S-Index widget preview will appear here after registration
+                </div>
             </div>
 
             <ol class="steps">
                 <li data-step="1.">
-                    <strong>Copy the embed code</strong> below, replacing <code style="display:inline; background:#131825; padding:0.15rem 0.4rem; border-radius:3px; font-size:0.78rem; color:#e67e22;">YOUR-SLUG</code> with your researcher slug:
-                    <span class="code-block" onclick="copyCode(this)">&lt;iframe src="https://researchtwin.net/embed.html?slug=YOUR-SLUG" width="440" height="180" style="border:none; border-radius:12px;" loading="lazy"&gt;&lt;/iframe&gt;<span class="copy-hint">click to copy</span></span>
+                    <strong>Copy the embed code</strong> below<span id="slug-instruction">, replacing <code style="display:inline; background:#131825; padding:0.15rem 0.4rem; border-radius:3px; font-size:0.78rem; color:#e67e22;">YOUR-SLUG</code> with your researcher slug</span>:
+                    <span class="code-block" id="howto-embed-code" onclick="copyCode(this)">&lt;iframe src="https://researchtwin.net/embed.html?slug=YOUR-SLUG" width="440" height="180" style="border:none; border-radius:12px;" loading="lazy"&gt;&lt;/iframe&gt;<span class="copy-hint">click to copy</span></span>
                 </li>
                 <li data-step="2.">
                     <strong>Paste it into your website:</strong>
@@ -293,16 +300,11 @@
     </div>
 
     <script>
-        let selectedTier = 3;
-
-        function selectTier(tier) {
-            selectedTier = tier;
-            document.querySelectorAll('.tier-tab').forEach(t => t.classList.remove('active'));
-            document.querySelector(`.tier-tab[data-tier="${tier}"]`).classList.add('active');
-
-            document.getElementById('tier1-content').style.display = tier === 1 ? 'block' : 'none';
-            document.getElementById('tier3-content').style.display = tier === 3 ? 'block' : 'none';
-            document.getElementById('tier2-content').style.display = tier === 2 ? 'block' : 'none';
+        function toggleSelfhost() {
+            const content = document.getElementById('selfhost-content');
+            const arrow = document.getElementById('selfhost-arrow');
+            content.classList.toggle('visible');
+            arrow.classList.toggle('open');
         }
 
         async function handleSubmit(e) {
@@ -318,7 +320,7 @@
             const data = {
                 name: form.name.value.trim(),
                 email: form.email.value.trim(),
-                tier: selectedTier,
+                tier: 3,
                 semantic_scholar_id: form.semantic_scholar_id.value.trim(),
                 google_scholar_id: form.google_scholar_id.value.trim(),
                 github_username: form.github_username.value.trim(),
@@ -350,8 +352,8 @@
         }
 
         function showSuccess(result) {
-            document.getElementById('tier3-content').style.display = 'none';
-            document.querySelector('.tier-tabs').style.display = 'none';
+            document.getElementById('form-content').style.display = 'none';
+            document.querySelector('.value-props').style.display = 'none';
 
             const successEl = document.getElementById('success');
             successEl.style.display = 'block';
@@ -361,9 +363,18 @@
             document.getElementById('embed-code').value =
                 `<iframe src="https://researchtwin.net/embed.html?slug=${result.slug}" width="440" height="180" style="border:none; border-radius:12px;" loading="lazy"></iframe>`;
 
-            // Update the how-to preview to show the new researcher
-            const preview = document.querySelector('.howto .preview-frame iframe');
-            if (preview) preview.src = `/embed.html?slug=${result.slug}`;
+            const preview = document.getElementById('embed-preview');
+            if (preview) preview.innerHTML = `<iframe src="/embed.html?slug=${result.slug}" width="100%" height="180" style="border:none;" loading="lazy"></iframe>`;
+
+            // Update the howto embed code with the actual slug
+            const howtoCode = document.getElementById('howto-embed-code');
+            if (howtoCode) {
+                const hint = howtoCode.querySelector('.copy-hint');
+                howtoCode.textContent = `<iframe src="https://researchtwin.net/embed.html?slug=${result.slug}" width="440" height="180" style="border:none; border-radius:12px;" loading="lazy"></iframe>`;
+                if (hint) howtoCode.appendChild(hint);
+            }
+            const slugInstr = document.getElementById('slug-instruction');
+            if (slugInstr) slugInstr.innerHTML = ` (your slug: <code style="display:inline; background:#131825; padding:0.1rem 0.3rem; border-radius:3px; font-size:0.78rem; color:#2ecc71;">${result.slug}</code>)`;
         }
 
         function copyCode(el) {

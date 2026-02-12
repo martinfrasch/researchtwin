@@ -323,7 +323,7 @@ async def register(req: RegisterRequest):
         semantic_scholar_id=req.semantic_scholar_id,
         google_scholar_id=req.google_scholar_id,
         github_username=req.github_username,
-        figshare_search_name=req.figshare_search_name or req.name,
+        figshare_search_name=req.figshare_search_name or "",
         orcid=req.orcid,
     )
 
@@ -466,10 +466,11 @@ async def researcher_datasets(slug: str):
             {
                 "@type": "Dataset",
                 "title": ds.get("title", ""),
-                "doi": ds.get("doi", ""),
-                "downloads": ds.get("downloads", 0),
-                "views": ds.get("views", 0),
-                "qic_score": ds.get("qic", 0),
+                "quality": ds.get("quality", 0),
+                "impact": ds.get("impact", 0),
+                "collaboration": ds.get("collaboration", 0),
+                "s_score": ds.get("score", 0),
+                "fair_gate": ds.get("fair_gate", False),
             }
             for ds in qic.get("dataset_scores", [])
         ],
@@ -490,12 +491,12 @@ async def researcher_repos(slug: str):
         "items": [
             {
                 "@type": "SoftwareSourceCode",
-                "name": repo.get("name", ""),
-                "description": repo.get("description", ""),
-                "stars": repo.get("stars", 0),
-                "forks": repo.get("forks", 0),
-                "language": repo.get("language", ""),
-                "qic_score": repo.get("qic", 0),
+                "name": repo.get("title", ""),
+                "quality": repo.get("quality", 0),
+                "impact": repo.get("impact", 0),
+                "collaboration": repo.get("collaboration", 0),
+                "s_score": repo.get("score", 0),
+                "fair_gate": repo.get("fair_gate", False),
             }
             for repo in qic.get("repo_scores", [])
         ],
@@ -584,13 +585,11 @@ async def discover(
         if type in ("", "dataset"):
             for ds in qic.get("dataset_scores", []):
                 title = ds.get("title", "")
-                desc = ds.get("description", "")
-                if q_lower in title.lower() or q_lower in desc.lower():
+                if q_lower in title.lower():
                     results.append({
                         "@type": "Dataset",
                         "title": title,
-                        "doi": ds.get("doi", ""),
-                        "qic_score": ds.get("qic", 0),
+                        "s_score": ds.get("score", 0),
                         "researcher": researcher_name,
                         "researcher_slug": slug,
                     })
@@ -598,19 +597,18 @@ async def discover(
         # Search repos
         if type in ("", "repo"):
             for repo in qic.get("repo_scores", []):
-                name = repo.get("name", "")
-                desc = repo.get("description", "")
-                if q_lower in name.lower() or q_lower in desc.lower():
+                title = repo.get("title", "")
+                if q_lower in title.lower():
                     results.append({
                         "@type": "SoftwareSourceCode",
-                        "name": name,
-                        "qic_score": repo.get("qic", 0),
+                        "name": title,
+                        "s_score": repo.get("score", 0),
                         "researcher": researcher_name,
                         "researcher_slug": slug,
                     })
 
     # Sort by relevance (title/name match first, then by score)
-    results.sort(key=lambda r: r.get("qic_score", r.get("citations", 0)), reverse=True)
+    results.sort(key=lambda r: r.get("s_score", r.get("citations", 0)), reverse=True)
 
     return {
         "@type": "SearchResultSet",

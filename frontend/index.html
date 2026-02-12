@@ -251,10 +251,10 @@
         const s = data.summary || {};
         const items = [
             { value: data.s_index?.toFixed(1) || '0', label: 'S-Index' },
+            { value: data.paper_impact?.toFixed(1) || '0', label: 'Paper Impact' },
             { value: s.total_papers || 0, label: 'Papers' },
             { value: (s.total_citations || 0).toLocaleString(), label: 'Citations' },
             { value: s.h_index || 0, label: 'h-Index' },
-            { value: s.i10_index || 0, label: 'i10-Index' },
             { value: (data.sources?.github?.total_repos || 0), label: 'Repos' },
             { value: (data.sources?.figshare?.total_datasets || 0), label: 'Datasets' },
         ];
@@ -316,6 +316,7 @@
         displayRepos.forEach((repo, i) => {
             const angle = -Math.PI/2 + (i / Math.max(displayRepos.length, 1)) * Math.PI;
             const r = 250 + Math.random() * 60;
+            const qVal = typeof repo.quality === 'object' ? repo.quality?.Q : repo.quality;
             const node = {
                 id: `repo-${i}`,
                 type: 'repo',
@@ -324,8 +325,8 @@
                 y: Math.sin(angle) * r + 40,
                 vx: 0, vy: 0,
                 radius: 7 + Math.min(repo.score / 3, 8),
-                meta: `Q: ${repo.quality?.Q?.toFixed(1)} | Impact: ${repo.impact} | Collab: ${repo.collaboration}`,
-                score: `QIC Score: ${repo.score}`,
+                meta: `Q: ${qVal?.toFixed?.(1) ?? qVal} | I: ${repo.impact} | C: ${repo.collaboration}${repo.fair_gate === false ? ' | BLOCKED' : ''}`,
+                score: `S-Score: ${repo.score}`,
             };
             nodes.push(node);
             edges.push({ source: 'researcher', target: node.id, weight: 1 });
@@ -357,6 +358,7 @@
         displayDatasets.forEach((ds, i) => {
             const angle = Math.PI/2 + (i / Math.max(displayDatasets.length, 1)) * Math.PI;
             const r = 260 + Math.random() * 60;
+            const qVal = typeof ds.quality === 'object' ? ds.quality?.Q : ds.quality;
             const node = {
                 id: `dataset-${i}`,
                 type: 'dataset',
@@ -366,8 +368,8 @@
                 y: Math.sin(angle) * r + 40,
                 vx: 0, vy: 0,
                 radius: 9 + Math.min(ds.score / 3, 8),
-                meta: `Q: ${ds.quality?.Q?.toFixed(1)} | Impact: ${ds.impact} | Collab: ${ds.collaboration}`,
-                score: `QIC Score: ${ds.score}`,
+                meta: `Q: ${qVal?.toFixed?.(1) ?? qVal} | I: ${ds.impact} | C: ${ds.collaboration}${ds.fair_gate === false ? ' | BLOCKED' : ''}`,
+                score: `S-Score: ${ds.score}`,
             };
             nodes.push(node);
             edges.push({ source: 'researcher', target: node.id, weight: 2 });

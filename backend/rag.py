@@ -21,9 +21,10 @@ def build_context(
     # Header
     sections.append(f"# Research Profile: {researcher_name}\n")
 
-    # QIC-Index Summary
-    sections.append(f"## QIC-Index (Quality × Impact × Collaboration)")
+    # S-Index v2 Summary
+    sections.append(f"## S-Index v2 (Quality × Impact × Collaboration)")
     sections.append(f"Total S-Index: {qic.get('s_index', 0)}")
+    sections.append(f"Paper Impact (P): {qic.get('paper_impact', 0)} | Artifact Total: {qic.get('artifact_total', 0)}")
     summary = qic.get("summary", {})
     sections.append(
         f"Papers: {summary.get('total_papers', 0)} | Citations: {summary.get('total_citations', 0)} | "
@@ -62,17 +63,17 @@ def build_context(
             sections.append(f"  {desc}")
     sections.append("")
 
-    # QIC per-object scores
+    # S-Index v2 per-object scores
     if qic.get("dataset_scores"):
-        sections.append("## QIC Scores — Datasets")
+        sections.append("## S-Scores — Datasets")
         for ds in qic["dataset_scores"]:
-            q = ds["quality"]
-            sections.append(f"- {ds['title']}: score={ds['score']} (Q={q['Q']:.1f}, I={ds['impact']}, C={ds['collaboration']})")
+            gate = "FAIR" if ds.get("fair_gate") else "BLOCKED"
+            sections.append(f"- {ds['title']}: score={ds['score']} (Q={ds['quality']:.1f}, I={ds['impact']}, C={ds['collaboration']}, {gate})")
     if qic.get("repo_scores"):
-        sections.append("## QIC Scores — Repositories")
+        sections.append("## S-Scores — Repositories")
         for rs in qic["repo_scores"][:5]:
-            q = rs["quality"]
-            sections.append(f"- {rs['title']}: score={rs['score']} (Q={q['Q']:.1f}, I={rs['impact']}, C={rs['collaboration']})")
+            gate = "FAIR" if rs.get("fair_gate") else "BLOCKED"
+            sections.append(f"- {rs['title']}: score={rs['score']} (Q={rs['quality']:.1f}, I={rs['impact']}, C={rs['collaboration']}, {gate})")
 
     return "\n".join(sections)
 
@@ -90,8 +91,10 @@ async def chat_with_context(context: str, user_message: str, researcher_name: st
         "You answer questions about their research, publications, code, datasets, and impact metrics. "
         "Use the provided context to give accurate, specific answers. "
         "Cite specific papers, repositories, or datasets when relevant. "
-        "If asked about the QIC-Index or S-Index, explain it as a Quality × Impact × Collaboration metric "
-        "for measuring the utility of shared research data (following FAIR principles). "
+        "If asked about the S-Index, explain it as S = P + Σ(Q × I × C) where P is paper impact "
+        "(h-index weighted by citations) and each artifact scores Quality × Impact × Collaboration. "
+        "Quality uses a FAIR gate (public + licensed = 5, else 0) with bonuses for DOI, documentation, and standard format. "
+        "Impact is field-normalized by median reuse. Collaboration is the geometric mean of authors × institutions. "
         "Be concise but informative. If information is not in the context, say so honestly."
     )
 

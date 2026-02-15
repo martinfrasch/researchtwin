@@ -190,6 +190,8 @@ h = \max(h_{\text{S2}},\, h_{\text{GS}}), \qquad c_{\text{total}} = \max(c_{\tex
 
 Papers present in Google Scholar but absent from Semantic Scholar (similarity below $0.85$ to all S2 titles) are appended to the merged list, providing broader coverage.
 
+A similar deduplication is applied to Figshare results. Many Figshare ``articles'' are individual figures or supplementary files from the same parent publication; scoring each separately would inflate the S-index. The system groups such items by title-pattern matching (e.g., ``Figure~N from \ldots'', ``Additional file~N of \ldots'') and author-fingerprint heuristics, retaining only the highest-scoring representative from each group.
+
 \paragraph{Citation source considerations.} The $\max$-merge strategy of Equation~\ref{eq:merge} may inflate citation counts relative to curated databases such as Web of Science or Scopus, because Google Scholar indexes a broader---and noisier---set of citing documents including theses, preprints, and non-peer-reviewed reports. We adopt $\max$ rather than averaging precisely because ResearchTwin prioritizes broad coverage and minimizing false negatives (i.e., undercounting a researcher's impact) over the conservative precision of curated indices. For researchers who require strict comparability with Web of Science baselines, the system can be configured to use Semantic Scholar as the sole citation source by disabling the Google Scholar connector. A systematic comparison of $\max$-merged citation counts against curated databases across a diverse researcher panel is planned as future work (Section~\ref{sec:future}).
 
 \subsection{Glial Layer}
@@ -519,18 +521,19 @@ Total citations & 3{,}837 & 3{,}073 \\
 Publications & 266 & 84 \\
 Paper Impact ($P$) & 151.28 & 139.12 \\
 \midrule
-Datasets & 53 & 65 \\
+Figshare items & 53 & 65 \\
+Scored datasets (after dedup) & 33 & 15 \\
 Scored repositories & 5 & 3 \\
 GitHub stars (total) & 15 & 3 \\
 \midrule
-\textbf{S-index} & \textbf{1{,}566.86} & \textbf{2{,}583.98} \\
+\textbf{S-index} & \textbf{1{,}048.88} & \textbf{781.74} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The key observation is that while both researchers have comparable H-indexes (33 vs.\ 31) and Paper Impact scores (151.28 vs.\ 139.12), their S-indexes differ by over $60\%$ (1{,}567 vs.\ 2{,}584). This divergence is driven almost entirely by the dataset and code contribution terms in Equation~\ref{eq:sindex}. Researcher~B has more datasets (65 vs.\ 53), and those datasets achieve higher Collaboration scores due to larger teams and multi-institutional authorship---for example, a representative dataset from Researcher~B scores $C = 4.555$ (reflecting a large, multi-institution consortium) compared to $C = 1.693$ for a representative dataset from Researcher~A.
+The key observation is that while both researchers have comparable H-indexes (33 vs.\ 31) and Paper Impact scores (151.28 vs.\ 139.12), their S-indexes differ by ${\sim}34\%$ (1{,}049 vs.\ 782). This divergence is driven by the dataset and code contribution terms in Equation~\ref{eq:sindex}. Although Researcher~B has more raw Figshare deposits (65 vs.\ 53), the deduplication step---which collapses individual figures and supplementary files into their parent works---reveals that Researcher~A has substantially more genuine scored artifacts (33 vs.\ 15). Researcher~B's datasets do achieve higher mean Collaboration scores ($\bar{C} = 4.31$ vs.\ $\bar{C} = 2.56$), reflecting larger multi-institutional teams, but this does not compensate for Researcher~A's greater breadth of independent artifacts and code contributions.
 
-This case illustrates the S-index's intended discriminative property: two researchers who appear nearly identical under citation-based metrics can have substantially different impact profiles when dataset contributions, code reuse, and collaboration breadth are incorporated. The H-index, by construction, cannot distinguish these cases.
+This case illustrates two properties of the S-index. First, its intended \emph{discriminative property}: two researchers who appear nearly identical under citation-based metrics can have substantially different impact profiles when dataset contributions, code reuse, and collaboration breadth are incorporated. Second, the importance of \emph{deduplication}: without grouping Figshare figures and supplements by parent work, Researcher~B's S-index would be artificially inflated by the large number of individually deposited figures from multi-author consortium papers. The H-index, by construction, cannot distinguish these cases.
 
 We note that this two-researcher comparison is illustrative rather than definitive. Whether the S-index difference reflects a genuinely meaningful distinction in research impact---rather than an artifact of the specific parameterization---requires validation against expert assessments across a larger and more diverse sample (Section~\ref{sec:future}).
 

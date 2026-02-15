@@ -1,4 +1,4 @@
-"""Fetch researcher affiliations from Semantic Scholar and ORCID."""
+"""Fetch researcher affiliations from Semantic Scholar, ORCID, and OpenAlex."""
 
 import asyncio
 import unicodedata
@@ -10,6 +10,7 @@ import cache
 
 S2_BASE = "https://api.semanticscholar.org/graph/v1"
 ORCID_BASE = "https://pub.orcid.org/v3.0"
+OPENALEX_BASE = "https://api.openalex.org"
 
 
 async def _fetch_s2_affiliations(author_id: str) -> list[str]:
@@ -110,6 +111,98 @@ async def _fetch_orcid_affiliations(orcid: str) -> list[dict]:
     return results
 
 
+async def _fetch_openalex_affiliations(orcid: str) -> list[dict]:
+    """Get affiliations from OpenAlex (uses ORCID as author identifier).
+
+    Returns list of dicts with keys: institution, city, country, current.
+    OpenAlex infers affiliations from paper metadata, so coverage is
+    excellent even when researchers haven't self-reported.
+    """
+    if not orcid:
+        return []
+
+    cache_key = f"openalex:affiliations:{orcid}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(
+                f"{OPENALEX_BASE}/authors/orcid:{orcid}",
+                params={"select": "affiliations,last_known_institutions"},
+            )
+            if resp.status_code != 200:
+                return []
+            data = resp.json()
+    except Exception:
+        return []
+
+    results = []
+    seen_orgs = set()
+
+    # last_known_institutions = current
+    for inst in data.get("last_known_institutions") or []:
+        name = inst.get("display_name", "")
+        if not name:
+            continue
+        norm_key = _normalize_name(name)
+        if norm_key in seen_orgs:
+            continue
+        seen_orgs.add(norm_key)
+        results.append({
+            "institution": name,
+            "city": "",
+            "country": inst.get("country_code", ""),
+            "current": True,
+        })
+
+    # Historical affiliations (skip if already in current)
+    import datetime
+    current_year = datetime.date.today().year
+    for aff in data.get("affiliations") or []:
+        inst = aff.get("institution", {})
+        name = inst.get("display_name", "")
+        if not name:
+            continue
+        norm_key = _normalize_name(name)
+        if norm_key in seen_orgs:
+            continue
+        seen_orgs.add(norm_key)
+
+        years = aff.get("years") or []
+        is_current = current_year in years or (current_year - 1) in years
+        results.append({
+            "institution": name,
+            "city": "",
+            "country": inst.get("country_code", ""),
+            "current": is_current,
+        })
+
+    cache.set(cache_key, results, ttl=86400 * 7)
+    return results
+
+
+def _normalize_name(name: str) -> str:
+    """Normalize for dedup: strip accents, lowercase, collapse whitespace."""
+    nfkd = unicodedata.normalize("NFKD", name)
+    ascii_str = "".join(c for c in nfkd if not unicodedata.combining(c))
+    return " ".join(ascii_str.lower().split())
+
+
+def _is_duplicate(name: str, existing: list[dict]) -> bool:
+    """Check if name is similar to any existing affiliation."""
+    norm = _normalize_name(name)
+    for aff in existing:
+        existing_norm = _normalize_name(aff["institution"])
+        if norm == existing_norm:
+            return True
+        # Similarity check for cross-language variants
+        if SequenceMatcher(None, norm, existing_norm).ratio() > 0.8:
+            return True
+    return False
+
+
 async def fetch_affiliations(semantic_scholar_id: str, orcid: str) -> list[dict]:
     """Fetch and merge affiliations from all available sources.
 
@@ -118,41 +211,31 @@ async def fetch_affiliations(semantic_scholar_id: str, orcid: str) -> list[dict]
     """
     s2_task = _fetch_s2_affiliations(semantic_scholar_id)
     orcid_task = _fetch_orcid_affiliations(orcid)
-    s2_affs, orcid_affs = await asyncio.gather(s2_task, orcid_task)
+    openalex_task = _fetch_openalex_affiliations(orcid)
+    s2_affs, orcid_affs, openalex_affs = await asyncio.gather(
+        s2_task, orcid_task, openalex_task,
+    )
 
     results = []
 
-    def _normalize_name(name: str) -> str:
-        """Normalize for dedup: strip accents, lowercase, collapse whitespace."""
-        nfkd = unicodedata.normalize("NFKD", name)
-        ascii_str = "".join(c for c in nfkd if not unicodedata.combining(c))
-        return " ".join(ascii_str.lower().split())
-
-    def _is_duplicate(name: str, existing: list[dict]) -> bool:
-        """Check if name is similar to any existing affiliation."""
-        norm = _normalize_name(name)
-        for aff in existing:
-            existing_norm = _normalize_name(aff["institution"])
-            if norm == existing_norm:
-                return True
-            # Similarity check for cross-language variants (e.g. Universite vs University)
-            if SequenceMatcher(None, norm, existing_norm).ratio() > 0.8:
-                return True
-        return False
-
-    # ORCID is richer (has city/country), so add it first
+    # ORCID is richest (has city/country from self-report), add first
     for aff in orcid_affs:
         if not _is_duplicate(aff["institution"], results):
             results.append({**aff, "source": "orcid"})
 
-    # Add S2 affiliations not already covered by ORCID
+    # OpenAlex next (inferred from papers, good coverage)
+    for aff in openalex_affs:
+        if not _is_duplicate(aff["institution"], results):
+            results.append({**aff, "source": "openalex"})
+
+    # S2 last (current only, no city/country)
     for name in s2_affs:
         if not _is_duplicate(name, results):
             results.append({
                 "institution": name,
                 "city": "",
                 "country": "",
-                "current": True,  # S2 only returns current
+                "current": True,
                 "source": "semantic_scholar",
             })
 

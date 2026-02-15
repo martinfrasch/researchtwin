@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field, field_validator
 
 import database
 import researchers
-from connectors import fetch_author_data, fetch_github_data, fetch_figshare_data, fetch_scholar_data, fetch_affiliations
+from connectors import fetch_author_data, fetch_github_data, fetch_figshare_data, fetch_scholar_data, fetch_affiliations, resolve_s2_id
 from models import RegisterRequest, RegisterResponse, RequestUpdateRequest, ProfileUpdateRequest, ProfileUpdateResponse
 from qic_index import compute_researcher_qic
 from rag import build_context, chat_with_context, chat_with_byok
@@ -552,6 +552,21 @@ async def chat_config(slug: str, request: Request):
 
 
 # ---------------------------------------------------------------------------
+# ORCID auto-enrichment (background task)
+# ---------------------------------------------------------------------------
+
+async def _enrich_from_orcid(slug: str, orcid: str, display_name: str) -> None:
+    """Best-effort: resolve ORCID → S2 author ID and update the profile."""
+    try:
+        s2_id = await resolve_s2_id(orcid, display_name)
+        if s2_id:
+            researchers.update_researcher(slug, semantic_scholar_id=s2_id)
+            logger.info("Auto-enriched %s: ORCID %s → S2 %s", slug, orcid, s2_id)
+    except Exception:
+        logger.exception("ORCID enrichment failed for %s", slug)
+
+
+# ---------------------------------------------------------------------------
 # Registration endpoint
 # ---------------------------------------------------------------------------
 
@@ -584,6 +599,11 @@ async def register(req: RegisterRequest):
         llm_api_key=req.llm_api_key,
         llm_provider=req.llm_provider,
     )
+
+    # Auto-enrich from ORCID: if researcher provided ORCID but not S2 ID,
+    # try to resolve it in the background so data appears on first visit.
+    if req.orcid and not req.semantic_scholar_id:
+        asyncio.create_task(_enrich_from_orcid(slug, req.orcid, req.name))
 
     return RegisterResponse(
         slug=slug, display_name=req.name, tier=req.tier,

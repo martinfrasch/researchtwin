@@ -26,7 +26,7 @@ def send_update_code(to_email: str, slug: str, code: str) -> bool:
 
     if not SMTP_HOST:
         print(f"[email_service] SMTP not configured. Code for {slug} ({to_email}): {code}")
-        return True
+        return False
 
     msg = EmailMessage()
     msg["Subject"] = subject

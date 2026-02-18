@@ -638,7 +638,11 @@ async def request_update(req: RequestUpdateRequest):
     code = researchers.create_update_token(slug)
 
     from email_service import send_update_code
-    send_update_code(req.email, slug, code)
+    if not send_update_code(req.email, slug, code):
+        raise HTTPException(
+            status_code=503,
+            detail="Email service is temporarily unavailable. Please contact martin@researchtwin.net for assistance.",
+        )
 
     return {"message": "Verification code sent to your email."}
 

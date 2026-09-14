@@ -1,6 +1,7 @@
 """Fetch researcher affiliations from Semantic Scholar, ORCID, and OpenAlex."""
 
 import asyncio
+import re
 import unicodedata
 from difflib import SequenceMatcher
 
@@ -11,6 +12,12 @@ import cache
 S2_BASE = "https://api.semanticscholar.org/graph/v1"
 ORCID_BASE = "https://pub.orcid.org/v3.0"
 OPENALEX_BASE = "https://api.openalex.org"
+
+# OpenAlex infers affiliations from paper metadata, so a single mislabeled or
+# co-authored paper attributes spurious institutions (e.g. "Apple", "Total") to a
+# researcher. Require sustained multi-year paper support to treat an OpenAlex
+# affiliation as real. ORCID (self-reported) and S2 are trusted without this gate.
+MIN_OPENALEX_YEARS = 3
 
 
 async def _fetch_s2_affiliations(author_id: str) -> list[str]:
@@ -138,46 +145,55 @@ async def _fetch_openalex_affiliations(orcid: str) -> list[dict]:
     except Exception:
         return []
 
-    results = []
-    seen_orgs = set()
-
-    # last_known_institutions = current
-    for inst in data.get("last_known_institutions") or []:
-        name = inst.get("display_name", "")
-        if not name:
-            continue
-        norm_key = _normalize_name(name)
-        if norm_key in seen_orgs:
-            continue
-        seen_orgs.add(norm_key)
-        results.append({
-            "institution": name,
-            "city": "",
-            "country": inst.get("country_code", ""),
-            "current": True,
-        })
-
-    # Historical affiliations (skip if already in current)
     import datetime
     current_year = datetime.date.today().year
+
+    # Build the set of institutions with sustained multi-year paper support. Entries
+    # backed by fewer than MIN_OPENALEX_YEARS distinct years are almost always
+    # disambiguation noise (a single co-authored or mislabeled paper) and are dropped.
+    strong = {}  # norm_key -> affiliation dict
     for aff in data.get("affiliations") or []:
         inst = aff.get("institution", {})
         name = inst.get("display_name", "")
         if not name:
             continue
-        norm_key = _normalize_name(name)
-        if norm_key in seen_orgs:
-            continue
-        seen_orgs.add(norm_key)
-
         years = aff.get("years") or []
-        is_current = current_year in years or (current_year - 1) in years
-        results.append({
+        if len(years) < MIN_OPENALEX_YEARS:
+            continue
+        norm_key = _normalize_name(name)
+        if norm_key in strong:
+            continue
+        strong[norm_key] = {
             "institution": name,
             "city": "",
             "country": inst.get("country_code", ""),
-            "current": is_current,
-        })
+            "current": current_year in years or (current_year - 1) in years,
+        }
+
+    results = []
+    seen_orgs = set()
+
+    # last_known_institutions = OpenAlex's computed "current", but this list is itself
+    # noisy (journals, one-off orgs), so only trust it when corroborated by strong
+    # multi-year support. Mark those as current.
+    for inst in data.get("last_known_institutions") or []:
+        name = inst.get("display_name", "")
+        if not name:
+            continue
+        norm_key = _normalize_name(name)
+        if norm_key not in strong or norm_key in seen_orgs:
+            continue
+        seen_orgs.add(norm_key)
+        entry = dict(strong[norm_key])
+        entry["current"] = True
+        results.append(entry)
+
+    # Remaining strong affiliations (historical or current by year).
+    for norm_key, entry in strong.items():
+        if norm_key in seen_orgs:
+            continue
+        seen_orgs.add(norm_key)
+        results.append(entry)
 
     cache.set(cache_key, results, ttl=86400 * 7)
     return results
@@ -190,15 +206,44 @@ def _normalize_name(name: str) -> str:
     return " ".join(ascii_str.lower().split())
 
 
+# Generic organizational words (EN/FR/DE, accent-stripped) that carry no identifying
+# information. Removing them leaves the distinctive tokens (usually a place or person
+# name) so variant spellings of the same institution can be matched.
+_ORG_STOPWORDS = {
+    "university", "universite", "universitat", "universidad", "universita", "college",
+    "institute", "institut", "institution", "hospital", "hopital", "krankenhaus",
+    "klinik", "klinikum", "clinic", "center", "centre", "zentrum", "school", "faculty",
+    "department", "dept", "laboratory", "lab", "research", "recherche", "forschung",
+    "medical", "medicine", "health", "sante", "sciences", "science", "national",
+    "international", "of", "the", "and", "for", "de", "du", "des", "la", "le", "les",
+    "el", "und", "fur", "pour", "et", "au", "aux", "chu", "chru", "system", "group",
+    "hospitalier", "universitaire", "hochschule", "foundation", "fondation", "trust",
+}
+
+
+def _significant_tokens(name: str) -> set:
+    """Distinctive tokens of an institution name, minus generic org words."""
+    toks = re.split(r"[^a-z0-9]+", _normalize_name(name))
+    return {t for t in toks if len(t) > 1 and t not in _ORG_STOPWORDS}
+
+
 def _is_duplicate(name: str, existing: list[dict]) -> bool:
     """Check if name is similar to any existing affiliation."""
     norm = _normalize_name(name)
+    sig = _significant_tokens(name)
     for aff in existing:
         existing_norm = _normalize_name(aff["institution"])
         if norm == existing_norm:
             return True
         # Similarity check for cross-language variants
         if SequenceMatcher(None, norm, existing_norm).ratio() > 0.8:
+            return True
+        # Same distinctive tokens (ignoring generic org words) → same institution under
+        # a different name form, e.g. "Centre de recherche du CHU Sainte-Justine" vs
+        # "Centre Hospitalier Universitaire Sainte-Justine". Require ≥2 shared tokens so
+        # single-token collisions ("University of Washington" vs "Washington University")
+        # are NOT merged.
+        if len(sig) >= 2 and sig == _significant_tokens(aff["institution"]):
             return True
     return False
 

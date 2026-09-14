@@ -279,7 +279,9 @@
             const loc = [a.city, a.country].filter(Boolean).join(', ');
             const cls = a.current ? 'aff-current' : 'aff-past';
             const label = a.current ? 'Current' : 'Past';
-            affHtml += `<div class="aff-item"><span class="${cls}">[${label}]</span> ${a.institution}${loc ? ' — ' + loc : ''}</div>`;
+            const unmapped = (a.lat == null || a.lng == null || a.geocoded === false);
+            const tag = unmapped ? ' <span style="color:#c99a2e; font-size:0.7rem">(not on map)</span>' : '';
+            affHtml += `<div class="aff-item"><span class="${cls}">[${label}]</span> ${a.institution}${loc ? ' — ' + loc : ''}${tag}</div>`;
         }
 
         panel.innerHTML = `
@@ -313,6 +315,7 @@
         const instCoords = {};
         for (const r of researchers) {
             for (const a of r.affiliations) {
+                if (a.lat == null || a.lng == null) continue;  // only map-able institutions link
                 const key = a.institution;
                 if (!instCoords[key]) instCoords[key] = [];
                 instCoords[key].push({ researcher: r.slug, lat: a.lat, lng: a.lng });
@@ -368,6 +371,7 @@
 
             let totalCurrent = 0;
             let totalPast = 0;
+            let totalUnmapped = 0;
             const bounds = [];
 
             for (const researcher of allData.researchers) {
@@ -375,12 +379,19 @@
 
                 for (const aff of researcher.affiliations) {
                     const isCurrent = aff.current;
+                    if (isCurrent) totalCurrent++;
+                    else totalPast++;
+
+                    // No coordinates: institution couldn't be geocoded. Still counted and
+                    // listed in the side panel, but no pin is placed on the map.
+                    if (aff.lat == null || aff.lng == null || aff.geocoded === false) {
+                        totalUnmapped++;
+                        continue;
+                    }
+
                     const color = isCurrent ? '#2ecc71' : '#3498db';
                     const size = isCurrent ? 14 : 10;
                     const icon = makeIcon(color, size);
-
-                    if (isCurrent) totalCurrent++;
-                    else totalPast++;
 
                     const location = [aff.city, aff.country].filter(Boolean).join(', ');
                     const popup = `
@@ -423,6 +434,11 @@
                     <div class="stat-dot past"></div>
                     ${totalPast} past affiliation${totalPast !== 1 ? 's' : ''}
                 </div>
+                ${totalUnmapped > 0 ? `
+                <div class="stat" title="Institutions we couldn't place on the map — see each researcher's panel">
+                    <div class="stat-dot" style="background:#c99a2e"></div>
+                    ${totalUnmapped} not on map
+                </div>` : ''}
                 <div class="stat">
                     ${allData.total_researchers} researcher${allData.total_researchers !== 1 ? 's' : ''} mapped
                 </div>

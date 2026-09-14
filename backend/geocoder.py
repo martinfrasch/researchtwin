@@ -18,30 +18,37 @@ CACHE_TTL = 86400 * 30  # 30 days
 _nominatim_lock = asyncio.Lock()
 
 
-async def geocode(query: str) -> dict | None:
+async def geocode(query: str, countrycode: str = "") -> dict | None:
     """Geocode an institution name or location string.
+
+    countrycode: optional ISO 3166-1 alpha-2 code (e.g. "de", "ca") passed to
+    Nominatim's countrycodes filter to disambiguate results — far more reliable
+    than putting a bare country code in the free-text query.
 
     Returns {"lat": float, "lng": float, "display_name": str} or None.
     """
     if not query or len(query) < 3:
         return None
 
-    cache_key = f"geocode:{query.lower().strip()}"
+    cache_key = f"geocode:{query.lower().strip()}|cc={countrycode}"
     cached = cache.get(cache_key)
     if cached is not None:
         return cached if cached != "__none__" else None
 
     async with _nominatim_lock:
         try:
+            params = {
+                "q": query,
+                "format": "json",
+                "limit": 1,
+                "addressdetails": 0,
+            }
+            if countrycode:
+                params["countrycodes"] = countrycode
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.get(
                     NOMINATIM_URL,
-                    params={
-                        "q": query,
-                        "format": "json",
-                        "limit": 1,
-                        "addressdetails": 0,
-                    },
+                    params=params,
                     headers={"User-Agent": USER_AGENT},
                 )
                 resp.raise_for_status()
@@ -69,21 +76,36 @@ async def geocode(query: str) -> dict | None:
 async def geocode_affiliation(affiliation: dict) -> dict | None:
     """Geocode an affiliation dict (from affiliations.py).
 
-    Tries institution + city + country first, falls back to institution alone.
+    Tries institution + city (country applied as a Nominatim filter) first, then
+    falls back to institution alone.
     """
-    parts = [affiliation.get("institution", "")]
-    if affiliation.get("city"):
-        parts.append(affiliation["city"])
-    if affiliation.get("country"):
-        parts.append(affiliation["country"])
+    institution = affiliation.get("institution", "")
+    city = affiliation.get("city", "")
+    country = affiliation.get("country", "")
 
-    full_query = ", ".join(p for p in parts if p)
-    result = await geocode(full_query)
+    # Country is usually an ISO 3166-1 alpha-2 code (e.g. "DE", "CA"). A bare code in
+    # the query text confuses Nominatim, so use it as the countrycodes filter and keep
+    # only real place names (city, or a full country name) in the query string.
+    is_code = len(country) == 2 and country.isalpha()
+    countrycode = country.lower() if is_code else ""
+    country_text = "" if is_code else country
+
+    parts = [p for p in [institution, city, country_text] if p]
+    full_query = ", ".join(parts)
+    result = await geocode(full_query, countrycode=countrycode)
     if result:
         return result
 
-    # Fallback: just the institution name
-    if len(parts) > 1:
-        return await geocode(affiliation["institution"])
+    # Fallback 1: institution name alone (still country-filtered when we have a code).
+    if city or country_text:
+        result = await geocode(institution, countrycode=countrycode)
+        if result:
+            return result
+
+    # Fallback 2: city-level (approximate). Many hospitals/research institutes aren't
+    # named features in Nominatim, but their city is — placing the pin in the right city
+    # beats dropping the affiliation entirely.
+    if city:
+        return await geocode(city, countrycode=countrycode)
 
     return None

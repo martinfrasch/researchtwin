@@ -1,5 +1,6 @@
 # ResearchTwin: Federated Agentic Web of Research Knowledge
 
+[![arXiv](https://img.shields.io/badge/arXiv-2603.00080-b31b1b.svg)](https://arxiv.org/abs/2603.00080)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Live Platform](https://img.shields.io/badge/platform-researchtwin.net-blue)](https://researchtwin.net)
 [![S-Index Spec](https://img.shields.io/badge/metric-S--Index-green)](https://github.com/martinfrasch/s-index)
@@ -7,7 +8,7 @@
 
 ResearchTwin is an open-source, federated platform that transforms a researcher's publications, datasets, and code repositories into a conversational **Digital Twin**. Built on a Bimodal Glial-Neural Optimization (BGNO) architecture, it enables dual-discovery where both humans and AI agents collaborate to accelerate scientific discovery.
 
-**Live at [researchtwin.net](https://researchtwin.net)** | **[Join the Network](https://researchtwin.net/join.html)**
+**Live at [researchtwin.net](https://researchtwin.net)** | **[Join the Network](https://researchtwin.net/join.html)** | **[Read the Paper (arXiv)](https://arxiv.org/abs/2603.00080)**
 
 ---
 

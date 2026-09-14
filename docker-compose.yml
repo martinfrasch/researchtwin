@@ -9,6 +9,7 @@ services:
     environment:
       - PERPLEXITY_API_KEY=${PERPLEXITY_API_KEY}
       - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - CACHE_DIR=/app/data/cache
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_PORT=${SMTP_PORT}
       - SMTP_USER=${SMTP_USER}
@@ -29,6 +30,10 @@ services:
   discord_bot:
     build: ./backend
     container_name: researchtwin_discord_bot
+    # Disabled by default: requires DISCORD_BOT_TOKEN (and DISCORD_GUILD_ID) in .env.
+    # Without a token the bot crash-loops. To re-enable, set the token in .env and run:
+    #   docker compose --profile discord up -d discord_bot
+    profiles: ["discord"]
     command: python discord_bot.py
     depends_on:
       backend:

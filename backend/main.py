@@ -11,6 +11,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
+import cache
 import database
 import researchers
 from connectors import fetch_author_data, fetch_github_data, fetch_figshare_data, fetch_scholar_data, fetch_affiliations, resolve_s2_id
@@ -785,9 +786,19 @@ async def researcher_repos(slug: str):
     }
 
 
-@app.get("/api/network/map")
-async def network_map():
-    """Return geocoded affiliations for all active researchers."""
+# Network map caching. Building the map fans out to external APIs (S2/ORCID/
+# OpenAlex) plus rate-limited geocoding for every researcher, which exceeds
+# nginx's 60s proxy timeout on a cold build → 504. Cache the result and serve it
+# stale while refreshing in the background, so callers (frontend map + MCP
+# get_network_map) never wait on the slow path.
+_NETMAP_KEY = "network_map:v2"  # v2: includes un-geocoded affiliations (geocoded flag, null coords)
+_NETMAP_HARD_TTL = 86400 * 30   # retain last good result up to 30 days as fallback
+_NETMAP_SOFT_TTL = 21600        # refresh in the background once older than 6h
+_netmap_refreshing = False
+
+
+async def _build_network_map() -> dict:
+    """Fetch + geocode affiliations for all active researchers (slow: external APIs)."""
     import geocoder
 
     researchers_list = []
@@ -803,24 +814,27 @@ async def network_map():
         if not affiliations:
             continue
 
-        geocoded = []
+        # Include every affiliation. Ones that fail geocoding are surfaced with
+        # geocoded=False and null coords (rather than silently dropped) so the map
+        # can list them and the MCP get_network_map tool still reports them.
+        mapped = []
         for aff in affiliations:
             coords = await geocoder.geocode_affiliation(aff)
-            if coords:
-                geocoded.append({
-                    "institution": aff["institution"],
-                    "city": aff.get("city", ""),
-                    "country": aff.get("country", ""),
-                    "current": aff.get("current", False),
-                    "lat": coords["lat"],
-                    "lng": coords["lng"],
-                })
+            mapped.append({
+                "institution": aff["institution"],
+                "city": aff.get("city", ""),
+                "country": aff.get("country", ""),
+                "current": aff.get("current", False),
+                "geocoded": coords is not None,
+                "lat": coords["lat"] if coords else None,
+                "lng": coords["lng"] if coords else None,
+            })
 
-        if geocoded:
+        if mapped:
             researchers_list.append({
                 "slug": slug,
                 "name": researcher["display_name"],
-                "affiliations": geocoded,
+                "affiliations": mapped,
             })
 
     return {
@@ -830,15 +844,56 @@ async def network_map():
     }
 
 
-@app.get("/api/discover")
-async def discover(
-    q: str = Query(..., min_length=2, max_length=200),
-    type: str = Query(default="", pattern="^(dataset|repo|paper|)$"),
-):
-    """Cross-researcher search for agent-driven discovery."""
-    q_lower = q.lower()
-    results = []
+def _schedule_netmap_refresh() -> None:
+    """Rebuild the network-map cache in the background (single-flight)."""
+    global _netmap_refreshing
+    if _netmap_refreshing:
+        return
+    _netmap_refreshing = True
 
+    async def _refresh():
+        global _netmap_refreshing
+        try:
+            data = await _build_network_map()
+            cache.set(_NETMAP_KEY, {"data": data, "built_at": time.time()}, ttl=_NETMAP_HARD_TTL)
+        except Exception:
+            logger.exception("network map background refresh failed")
+        finally:
+            _netmap_refreshing = False
+
+    asyncio.create_task(_refresh())
+
+
+@app.get("/api/network/map")
+async def network_map():
+    """Return geocoded affiliations for all active researchers (cached, stale-while-revalidate)."""
+    entry = cache.get(_NETMAP_KEY)
+    if entry is not None:
+        # Serve cached immediately; kick off a background refresh if it's gone soft-stale.
+        if time.time() - entry.get("built_at", 0) > _NETMAP_SOFT_TTL:
+            _schedule_netmap_refresh()
+        return entry["data"]
+
+    # Cold cache (first request / after hard expiry): build inline and store.
+    data = await _build_network_map()
+    cache.set(_NETMAP_KEY, {"data": data, "built_at": time.time()}, ttl=_NETMAP_HARD_TTL)
+    return data
+
+
+# Discover index caching. The heavy part of /api/discover — fanning out to every
+# researcher's external sources and computing QIC — is query-independent: it just
+# assembles a flat searchable list of all papers/datasets/repos. Only the final
+# substring filter depends on `q`. Cache that index (stale-while-revalidate) so every
+# query is instant instead of re-fanning out (which cold could exceed nginx's 60s).
+_DISCOVER_KEY = "discover_index:v1"
+_DISCOVER_HARD_TTL = 86400 * 7   # retain last good index up to 7 days as fallback
+_DISCOVER_SOFT_TTL = 3600        # refresh in the background once older than 1h
+_discover_refreshing = False
+
+
+async def _build_discover_index() -> list[dict]:
+    """Assemble a query-independent, searchable list of all researchers' outputs."""
+    items = []
     for slug in researchers.list_slugs():
         researcher = researchers.get_researcher(slug)
         try:
@@ -849,45 +904,89 @@ async def discover(
 
         researcher_name = researcher["display_name"]
 
-        # Search papers
-        if type in ("", "paper"):
-            for p in s2_data.get("top_papers", []):
-                title = p.get("title", "")
-                if q_lower in title.lower():
-                    results.append({
-                        "@type": "ScholarlyArticle",
-                        "title": title,
-                        "year": p.get("year"),
-                        "citations": p.get("citations", 0),
-                        "researcher": researcher_name,
-                        "researcher_slug": slug,
-                    })
+        for p in s2_data.get("top_papers", []):
+            title = p.get("title", "")
+            if title:
+                items.append({
+                    "@type": "ScholarlyArticle",
+                    "title": title,
+                    "year": p.get("year"),
+                    "citations": p.get("citations", 0),
+                    "researcher": researcher_name,
+                    "researcher_slug": slug,
+                })
 
-        # Search datasets
-        if type in ("", "dataset"):
-            for ds in qic.get("dataset_scores", []):
-                title = ds.get("title", "")
-                if q_lower in title.lower():
-                    results.append({
-                        "@type": "Dataset",
-                        "title": title,
-                        "s_score": ds.get("score", 0),
-                        "researcher": researcher_name,
-                        "researcher_slug": slug,
-                    })
+        for ds in qic.get("dataset_scores", []):
+            title = ds.get("title", "")
+            if title:
+                items.append({
+                    "@type": "Dataset",
+                    "title": title,
+                    "s_score": ds.get("score", 0),
+                    "researcher": researcher_name,
+                    "researcher_slug": slug,
+                })
 
-        # Search repos
-        if type in ("", "repo"):
-            for repo in qic.get("repo_scores", []):
-                title = repo.get("title", "")
-                if q_lower in title.lower():
-                    results.append({
-                        "@type": "SoftwareSourceCode",
-                        "name": title,
-                        "s_score": repo.get("score", 0),
-                        "researcher": researcher_name,
-                        "researcher_slug": slug,
-                    })
+        for repo in qic.get("repo_scores", []):
+            title = repo.get("title", "")
+            if title:
+                items.append({
+                    "@type": "SoftwareSourceCode",
+                    "name": title,
+                    "s_score": repo.get("score", 0),
+                    "researcher": researcher_name,
+                    "researcher_slug": slug,
+                })
+
+    return items
+
+
+def _schedule_discover_refresh() -> None:
+    """Rebuild the discover index cache in the background (single-flight)."""
+    global _discover_refreshing
+    if _discover_refreshing:
+        return
+    _discover_refreshing = True
+
+    async def _refresh():
+        global _discover_refreshing
+        try:
+            index = await _build_discover_index()
+            cache.set(_DISCOVER_KEY, {"data": index, "built_at": time.time()}, ttl=_DISCOVER_HARD_TTL)
+        except Exception:
+            logger.exception("discover index background refresh failed")
+        finally:
+            _discover_refreshing = False
+
+    asyncio.create_task(_refresh())
+
+
+@app.get("/api/discover")
+async def discover(
+    q: str = Query(..., min_length=2, max_length=200),
+    type: str = Query(default="", pattern="^(dataset|repo|paper|)$"),
+):
+    """Cross-researcher search for agent-driven discovery (served from a cached index)."""
+    entry = cache.get(_DISCOVER_KEY)
+    if entry is not None:
+        index = entry["data"]
+        if time.time() - entry.get("built_at", 0) > _DISCOVER_SOFT_TTL:
+            _schedule_discover_refresh()  # serve current index now, refresh for next time
+    else:
+        index = await _build_discover_index()
+        cache.set(_DISCOVER_KEY, {"data": index, "built_at": time.time()}, ttl=_DISCOVER_HARD_TTL)
+
+    q_lower = q.lower()
+    type_for = {"paper": "ScholarlyArticle", "dataset": "Dataset", "repo": "SoftwareSourceCode"}
+    wanted_type = type_for.get(type)
+
+    results = []
+    for item in index:
+        if wanted_type and item["@type"] != wanted_type:
+            continue
+        text = item.get("title") or item.get("name", "")
+        if q_lower in text.lower():
+            results.append(item)
 
     # Sort by relevance (title/name match first, then by score)
     results.sort(key=lambda r: r.get("s_score", r.get("citations", 0)), reverse=True)
